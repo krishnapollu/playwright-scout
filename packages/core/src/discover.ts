@@ -40,10 +40,8 @@ function isJs(p: string): boolean {
   return /\.(js|jsx|mjs|cjs)$/.test(p);
 }
 
-/** Determines project language from file list. */
-export function detectLanguage(
-  files: string[],
-): 'typescript' | 'javascript' | 'mixed' {
+/** Determines project language from a list of source file paths. */
+export function detectLanguage(files: string[]): 'typescript' | 'javascript' | 'mixed' {
   let hasTs = false;
   let hasJs = false;
   for (const f of files) {
@@ -57,7 +55,7 @@ export function detectLanguage(
 
 /**
  * Discovers spec and support files under root according to the playwright config.
- * Returns POSIX paths relative to root.
+ * Returns POSIX paths relative to root, sorted by code-unit order.
  */
 export async function discoverFiles(
   root: string,
@@ -77,7 +75,7 @@ export async function discoverFiles(
     { cwd: root, ignore: IGNORE, absolute: false, onlyFiles: true },
   );
 
-  // Filter by size
+  // Filter oversized files
   const specFiles: string[] = [];
   for (const rel of rawSpecs.sort()) {
     const abs = path.join(root, rel);
@@ -101,13 +99,11 @@ export async function discoverFiles(
       absolute: false,
       onlyFiles: true,
     });
-    const specSet = new Set(specFiles.map((f) => path.relative(testDir, f).split(path.sep).join('/')));
+    const specBasenames = new Set(specFiles.map((f) => f.slice(testDir.length + 1)));
     for (const rel of allUnderTestDir) {
       if (rel.endsWith('.d.ts')) continue;
-      const posix = (testDir !== '.' ? testDir + '/' : '') + rel.split(path.sep).join('/');
-      if (!specSet.has(rel) && !specFiles.includes(posix)) {
-        supportSet.add(posix);
-      }
+      if (specBasenames.has(rel)) continue;
+      supportSet.add((testDir + '/' + rel).split(path.sep).join('/'));
     }
   }
 
