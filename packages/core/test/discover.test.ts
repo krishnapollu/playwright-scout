@@ -46,3 +46,4 @@ describe('detectLanguage', () => {
     expect(detectLanguage(['a.js', 'b.mjs'])).toBe('javascript');
   });
 });
+

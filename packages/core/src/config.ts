@@ -205,3 +205,4 @@ export function readTsAliasConfig(root: string, testDir: string): TsAliasConfig 
   }
   return { baseUrl: undefined, paths: undefined, pathsBasePath: root };
 }
+
