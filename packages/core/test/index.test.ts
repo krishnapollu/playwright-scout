@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { core } from '../src/index.js';
+import { SCHEMA_VERSION } from '../src/index.js';
 
-test('core is true', () => {
-  expect(core).toBe(true);
+test('SCHEMA_VERSION is 1', () => {
+  expect(SCHEMA_VERSION).toBe(1);
 });

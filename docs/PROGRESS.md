@@ -7,7 +7,8 @@
   - Configured test runner (Vitest) with trivial passing test for each package.
   - Generated LICENSE, README, AGENTS.md, docs and CI GitHub Action.
   - Verified `npm run check` passes completely.
-- [ ] T1 Schema & IO
+- [x] T1 Schema & IO
+  - Implemented zod schemas, ScoutError, posix paths, and io helpers.
 - [ ] T2 Config reading
 - [ ] T3 Parsing & resolution
 - [ ] T4 Helper & fixture facts
