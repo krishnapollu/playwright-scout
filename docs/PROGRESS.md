@@ -9,7 +9,7 @@
   - Verified `npm run check` passes completely.
 - [x] T1 Schema & IO
   - Implemented zod schemas, ScoutError, posix paths, and io helpers.
-- [ ] T2 Config reading
+- [x] T2 Discovery & config — static config reading via TS compiler API; fast-glob spec/support discovery; tsconfig paths; 17 tests passing.
 - [ ] T3 Parsing & resolution
 - [ ] T4 Helper & fixture facts
 - [ ] T5 Test-tree facts
