@@ -1,0 +1,17 @@
+{
+  "name": "playwright-scout",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "playwright-scout": "dist/bin.js",
+    "scout": "dist/bin.js"
+  },
+  "files": ["dist", "skills"],
+  "scripts": {
+    "build": "node scripts/copy-skill.mjs"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "playwright-scout-core": "*"
+  }
+}

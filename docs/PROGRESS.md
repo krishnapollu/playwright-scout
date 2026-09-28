@@ -1,0 +1,22 @@
+# Progress
+
+- [x] T0 Scaffold
+  - Scaffolded initial repo layout as per Section 3.
+  - Setup ESLint flat config, Prettier, TypeScript configuration.
+  - Created initial workspace `package.json` for root and two packages (core, cli).
+  - Configured test runner (Vitest) with trivial passing test for each package.
+  - Generated LICENSE, README, AGENTS.md, docs and CI GitHub Action.
+  - Verified `npm run check` passes completely.
+- [ ] T1 Schema & IO
+- [ ] T2 Config reading
+- [ ] T3 Parsing & resolution
+- [ ] T4 Helper & fixture facts
+- [ ] T5 Test-tree facts
+- [ ] T6 Linking & build
+- [ ] T7 CLI map
+- [ ] T8 Search & show
+- [ ] T9 Robustness
+- [ ] T10 Skill & installer
+- [ ] T11 Docs
+- [ ] T12 Dry run on real code
+- [ ] T13 Release prep
