@@ -1,1 +1,1 @@
-{ "compilerOptions": { "baseUrl": ".", "paths": { "@pages/*": ["pages/*"], "@utils/*": ["utils/*"] } } }
+{ "compilerOptions": { "baseUrl": ".", "ignoreDeprecations": "6.0", "paths": { "@pages/*": ["pages/*"], "@utils/*": ["utils/*"] } } }

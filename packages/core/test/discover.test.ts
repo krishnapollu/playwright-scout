@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { discoverFiles, detectLanguage } from '../src/discover.js';
+import { resolveSpecifier, resolveExport } from '../src/resolve.js';
 
 const SAMPLE = path.resolve(import.meta.dirname, '../../../fixtures/sample-suite');
 
@@ -44,6 +45,36 @@ describe('detectLanguage', () => {
 
   it('returns javascript for all js files', () => {
     expect(detectLanguage(['a.js', 'b.mjs'])).toBe('javascript');
+  });
+});
+
+describe('resolveSpecifier and resolveExport', () => {
+  const SAMPLE = path.resolve(import.meta.dirname, '../../../fixtures/sample-suite');
+
+  it('resolves relative and alias imports', () => {
+    expect(resolveSpecifier('fixtures/sample-suite/pages/index.ts', './login.page', {
+      baseUrl: undefined,
+      paths: undefined,
+      pathsBasePath: SAMPLE,
+    })).toBe('fixtures/sample-suite/pages/login.page.ts');
+
+    expect(resolveSpecifier('fixtures/sample-suite/tests/login.spec.ts', '@utils/auth', {
+      baseUrl: undefined,
+      paths: { '@utils/*': ['utils/*'] },
+      pathsBasePath: SAMPLE,
+    })).toBe('fixtures/sample-suite/utils/auth.ts');
+  });
+
+  it('resolves exports through barrel files', () => {
+    expect(resolveExport('fixtures/sample-suite/pages/index.ts', 'LoginPage')).toMatchObject({
+      file: 'fixtures/sample-suite/pages/login.page.ts',
+      localName: 'LoginPage',
+    });
+
+    expect(resolveExport('fixtures/sample-suite/pages/index.ts', 'CheckoutPage')).toMatchObject({
+      file: 'fixtures/sample-suite/pages/checkout.page.ts',
+      localName: 'CheckoutPage',
+    });
   });
 });
 
