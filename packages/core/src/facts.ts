@@ -1,5 +1,4 @@
 import ts from 'typescript';
-import { parseFile } from './parse.js';
 import type { MethodEntry } from './schema.js';
 
 export interface ImportFact {
@@ -150,7 +149,7 @@ function getValuePreview(expr: ts.Expression | undefined): string | null {
   return text.length > 0 ? truncateText(text, 80) : null;
 }
 
-function collectClassMethods(node: ts.ClassDeclaration): MethodEntry[] {
+function collectClassMethods(node: ts.ClassDeclaration, fileName: string, ownerName: string): MethodEntry[] {
   const methods: MethodEntry[] = [];
   for (const member of node.members) {
     if (ts.isMethodDeclaration(member) || ts.isGetAccessorDeclaration(member) || ts.isSetAccessorDeclaration(member)) {
@@ -162,7 +161,7 @@ function collectClassMethods(node: ts.ClassDeclaration): MethodEntry[] {
         : 'public';
       if (modifiers.some((m: ts.Modifier) => m.kind === ts.SyntaxKind.PrivateKeyword)) continue;
       methods.push({
-        id: `${createHelperId('', node.name?.text ?? 'class')}.${name}`,
+        id: `${createHelperId(fileName, ownerName)}.${name}`,
         name,
         params: getFunctionParams(member),
         returns: getReturnType(member),
@@ -241,8 +240,27 @@ function parseFixtureConfig(node: ts.Expression): { scope: 'test' | 'worker'; au
   return result;
 }
 
-export function extractFacts(relPath: string, text: string, isSpec: boolean): FileFacts {
-  const sourceFile = parseFile(relPath, text);
+function getDefaultExportName(node: ts.ClassDeclaration): string {
+  const modifiers = ts.getModifiers(node) ?? [];
+  return modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword) ? 'default' : node.name?.getText() ?? '';
+}
+
+function extractFixtureDependsOn(node: ts.Expression | undefined): string[] {
+  if (!node || (!ts.isArrowFunction(node) && !ts.isFunctionExpression(node))) return [];
+  const deps = new Set<string>();
+  const firstParam = node.parameters[0];
+  if (firstParam && ts.isObjectBindingPattern(firstParam.name)) {
+    for (const element of firstParam.name.elements) {
+      if (ts.isBindingElement(element)) {
+        const name = ts.isIdentifier(element.name) ? element.name.text : null;
+        if (name && name !== 'use') deps.add(name);
+      }
+    }
+  }
+  return [...deps];
+}
+
+export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec: boolean): FileFacts {
   const imports: ImportFact[] = [];
   const localDecls: Record<string, LocalDecl> = {};
   const exports: ExportFact[] = [];
@@ -335,6 +353,7 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
               const key = ts.isIdentifier(prop.name) ? prop.name.text : ts.isStringLiteral(prop.name) ? prop.name.text : null;
               if (!key) continue;
               const cfg = parseFixtureConfig(prop.initializer);
+              const dependsOn = cfg.dependsOn.length > 0 ? cfg.dependsOn : extractFixtureDependsOn(prop.initializer);
               fixtureDefs.push({
                 id: `fixture:${toPosix(relPath)}#${key}`,
                 name: key,
@@ -343,7 +362,7 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
                 scope: cfg.scope,
                 auto: cfg.auto,
                 option: cfg.option,
-                dependsOn: cfg.dependsOn,
+                dependsOn,
                 testObject: target,
               });
             }
@@ -356,10 +375,11 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
   for (const stmt of sourceFile.statements) {
     if (ts.isFunctionDeclaration(stmt) && stmt.name) {
       const kind = 'function';
+      const exportName = !!ts.getModifiers(stmt)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword) ? 'default' : stmt.name.text;
       const detail: HelperDetail = {
         id: createHelperId(toPosix(relPath), stmt.name.text),
         name: stmt.name.text,
-        exportName: stmt.name.text,
+        exportName,
         kind,
         file: toPosix(relPath),
         line: stmt.getStart() + 1,
@@ -387,7 +407,7 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
       const detail: HelperDetail = {
         id: createHelperId(toPosix(relPath), stmt.name.text),
         name: stmt.name.text,
-        exportName: stmt.name.text,
+        exportName: getDefaultExportName(stmt),
         kind: 'class',
         file: toPosix(relPath),
         line: stmt.getStart() + 1,
@@ -399,7 +419,7 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
         extends: stmt.heritageClauses?.[0]?.types[0]?.expression.getText() ?? null,
         category,
         doc: getJsDoc(stmt),
-        methods: collectClassMethods(stmt),
+        methods: collectClassMethods(stmt, toPosix(relPath), stmt.name.text),
         navigatesTo: collectGotoStrings(stmt),
       };
       helperDetails.push(detail);
@@ -409,26 +429,28 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
         if (!ts.isIdentifier(decl.name)) continue;
         const name = decl.name.text;
         const isExportedVar = !!stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
-        if (decl.initializer && !ts.isArrowFunction(decl.initializer) && !ts.isFunctionExpression(decl.initializer) && !hasTestObjectInitializer(decl.initializer)) {
+        const isDefault = !!stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword);
+        if (decl.initializer && !hasTestObjectInitializer(decl.initializer)) {
+          const isFunctionLike = ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer);
           const detail: HelperDetail = {
             id: createHelperId(toPosix(relPath), name),
             name,
-            exportName: name,
-            kind: 'constant',
+            exportName: isDefault ? 'default' : name,
+            kind: isFunctionLike ? 'function' : 'constant',
             file: toPosix(relPath),
             line: stmt.getStart() + 1,
             endLine: stmt.getEnd() + 1,
-            isAsync: false,
-            params: null,
-            returns: null,
-            valuePreview: getValuePreview(decl.initializer),
+            isAsync: !!(decl.initializer && (ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer)) && decl.initializer.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword)),
+            params: isFunctionLike ? getFunctionParams(decl.initializer) : null,
+            returns: isFunctionLike ? getReturnType(decl.initializer) : null,
+            valuePreview: isFunctionLike ? null : getValuePreview(decl.initializer),
             extends: null,
             category: 'helper',
             doc: getJsDoc(stmt),
             methods: [],
             navigatesTo: collectGotoStrings(stmt),
           };
-          if (isExportedVar || name === 'USERS' || name === 'COUPON_CODE') helperDetails.push(detail);
+          if (isExportedVar || isDefault || name === 'USERS' || name === 'COUPON_CODE' || isFunctionLike) helperDetails.push(detail);
         }
       }
     }
@@ -517,7 +539,9 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
 
       function collectTitleTags(title: string | null, titleText: string | undefined): string[] {
         if (!titleText) return [];
-        const tags = [...titleText.matchAll(/(?:^|\s)(@[-\w:]+)/g)].map((match) => match[1]);
+        const tags = [...titleText.matchAll(/(?:^|\s)(@[-\w:]+)/g)]
+          .map((match) => match[1])
+          .filter((tag): tag is string => tag !== undefined);
         if (title && title.startsWith('@')) {
           tags.push(title);
         }
@@ -534,7 +558,7 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
           const { base: baseName, parts } = getAccessChain(expr);
           const chain = parts.join('.');
           const last = parts.at(-1) ?? null;
-          const isDescribeLike = !!baseName && (baseName === 'test' || testBindings.has(baseName)) && ((parts.length === 2 && parts[1] === 'describe') || (parts.length >= 3 && parts[1] === 'describe' && ['only', 'skip', 'fixme', 'serial', 'parallel'].includes(parts[2])) || (parts.length === 1 && parts[0] === 'describe'));
+          const isDescribeLike = !!baseName && (baseName === 'test' || testBindings.has(baseName)) && ((parts.length === 2 && parts[1] === 'describe') || (parts.length >= 3 && parts[1] === 'describe' && parts[2] !== undefined && ['only', 'skip', 'fixme', 'serial', 'parallel'].includes(parts[2])) || (parts.length === 1 && parts[0] === 'describe'));
           const isTestLike = !!baseName && (baseName === 'test' || testBindings.has(baseName)) && (chain === 'test' || (parts.length >= 2 && parts[0] === 'test' && ['only', 'skip', 'fixme', 'fail', 'slow'].includes(last ?? '')) || (parts.length >= 2 && baseName !== 'test' && testBindings.has(baseName) && ['only', 'skip', 'fixme', 'fail', 'slow'].includes(last ?? '')));
 
           if (isDescribeLike) {
@@ -543,7 +567,7 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
             const nextSuite = title ? [...suitePath, title] : suitePath;
             const nextTags = uniqueSorted([...tags, ...collectTagsFromDetails(node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1]) ? node.arguments[1] : undefined)]);
             const callback = [...node.arguments].reverse().find((arg): arg is ts.ArrowFunction | ts.FunctionExpression => ts.isArrowFunction(arg) || ts.isFunctionExpression(arg));
-            const nextInLoop = inLoop || (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) && false;
+            const nextInLoop = inLoop;
 
             if (title) {
               const extracted = collectTitleTags(title, title);
@@ -609,7 +633,7 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
               gotos: callbackGotos,
             };
 
-            const modifiers = new Set<string>();
+            const modifiers = new Set<TestTreeRecord['modifiers'][number]>();
             if (testKind === 'skip') modifiers.add('skip');
             if (testKind === 'fixme') modifiers.add('fixme');
             if (testKind === 'only') modifiers.add('only');
@@ -654,6 +678,6 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
     testObjectExports,
     testTree,
     references,
-    cjs: /module\.exports|require\s*\(/.test(text),
+    cjs: /module\.exports|require\s*\(/.test(sourceFile.text),
   };
 }

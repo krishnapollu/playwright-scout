@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { extractFacts, type FileFacts } from './facts.js';
+import { parseFile } from './parse.js';
 import type { Diagnostic, FixtureEntry, HelperEntry, MethodEntry, SpecEntry, Stats, TagEntry, TestEntry } from './schema.js';
 
 export interface LinkedResult {
@@ -23,6 +24,8 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
   const tests: TestEntry[] = [];
   const specs: SpecEntry[] = [];
   const helperDirs = new Map<string, number>();
+  const helperByName = new Map<string, string[]>();
+  const helperByMethodName = new Map<string, string[]>();
 
   for (const file of files) {
     const facts = factsByFile.get(file);
@@ -55,6 +58,19 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
         referencedByTruncated: false,
       };
       helpers.push(entry);
+      for (const key of [detail.name, detail.exportName]) {
+        if (key) {
+          const current = helperByName.get(key) ?? [];
+          current.push(entry.id);
+          helperByName.set(key, [...new Set(current)]);
+        }
+      }
+      for (const method of entry.methods) {
+        const key = method.name;
+        const current = helperByMethodName.get(key) ?? [];
+        current.push(method.id);
+        helperByMethodName.set(key, [...new Set(current)]);
+      }
       const dir = path.posix.dirname(file);
       helperDirs.set(dir, (helperDirs.get(dir) ?? 0) + 1);
     }
@@ -101,6 +117,62 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
     }
   }
 
+  const referenceMap = new Map<string, Set<string>>();
+  for (const file of files) {
+    const facts = factsByFile.get(file);
+    if (!facts) continue;
+    for (const ref of facts.references) {
+      const ids = new Set<string>();
+      for (const id of helperByName.get(ref) ?? []) ids.add(id);
+      for (const id of helperByMethodName.get(ref) ?? []) ids.add(id);
+      if (ids.size > 0) {
+        const set = referenceMap.get(file) ?? new Set<string>();
+        for (const id of ids) set.add(id);
+        referenceMap.set(file, set);
+      }
+    }
+    for (const helper of helpers) {
+      if (facts.references.has(helper.name) || facts.references.has(helper.exportName)) {
+        const set = referenceMap.get(file) ?? new Set<string>();
+        set.add(helper.id);
+        for (const method of helper.methods) set.add(method.id);
+        referenceMap.set(file, set);
+      }
+    }
+  }
+
+  for (const [file, ids] of referenceMap.entries()) {
+    for (const id of ids) {
+      const helper = helpers.find((entry) => entry.id === id || entry.methods.some((method) => method.id === id));
+      if (!helper) continue;
+      const targetId = helper.id;
+      const helperEntry = helpers.find((entry) => entry.id === targetId);
+      if (!helperEntry) continue;
+      const current = new Set(helperEntry.referencedByFiles);
+      current.add(file);
+      helperEntry.referencedByFiles = [...current].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    }
+  }
+
+  for (const file of files) {
+    const facts = factsByFile.get(file);
+    if (!facts || !facts.testTree.length) continue;
+    for (const test of facts.testTree) {
+      const calls = new Set<string>();
+      for (const ref of new Set(facts.references)) {
+        for (const id of helperByName.get(ref) ?? []) calls.add(id);
+        for (const id of helperByMethodName.get(ref) ?? []) calls.add(id);
+      }
+      for (const helper of helpers) {
+        if (facts.references.has(helper.name) || facts.references.has(helper.exportName)) {
+          calls.add(helper.id);
+          for (const method of helper.methods) calls.add(method.id);
+        }
+      }
+      test.calls = [...calls].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    }
+  }
+
   const helperCounts = new Map<string, number>();
   for (const file of files) {
     const facts = factsByFile.get(file);
@@ -127,7 +199,7 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
     }
   }
 
-  const tags = [...tagCounts.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([tag, testCount]) => ({ tag, testCount }));
+  const tags = [...tagCounts.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([tag, testCount]) => ({ tag, testCount }));
 
   const stats: Stats = {
     specFiles: specs.length,
@@ -149,10 +221,10 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
     tags,
     diagnostics,
     stats,
-    helperDirs: [...helperDirs.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([dir, count]) => ({ dir, count })),
+    helperDirs: [...helperDirs.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([dir, count]) => ({ dir, count })),
   };
 }
 
 export function buildFactsForFile(relPath: string, text: string, isSpec: boolean): FileFacts {
-  return extractFacts(relPath, text, isSpec);
+  return extractFacts(relPath, parseFile(relPath, text), isSpec);
 }
