@@ -71,8 +71,11 @@ export interface TestTreeRecord {
   calls: string[];
   navigatesTo: string[];
   inLoop: boolean;
-  referencedNames?: string[];
-  namespaceMembers?: Array<{ ns: string; member: string }>;
+  referencedNames: string[];
+  namespaceMembers: Array<{ ns: string; member: string }>;
+  newExpressions: string[];
+  instanceVariables: Array<{ variable: string; className: string }>;
+  instanceMethodCalls: Array<{ variable: string; method: string }>;
   gotos?: string[];
 }
 
@@ -85,6 +88,7 @@ export interface FileFacts {
   testObjectExports: Set<string>;
   testTree: TestTreeRecord[];
   references: Set<string>;
+  namespaceMembers: Array<{ ns: string; member: string }>;
   cjs: boolean;
 }
 
@@ -191,17 +195,81 @@ function collectGotoStrings(node: ts.Node): string[] {
   return [...values].sort();
 }
 
-function collectReferences(node: ts.Node, names: Set<string>): void {
+function collectReferences(node: ts.Node, names: Set<string>, namespaceMembers: Array<{ ns: string; member: string }> = []): void {
   function visit(current: ts.Node): void {
+    if (ts.isPropertyAccessExpression(current) && ts.isIdentifier(current.expression)) {
+      namespaceMembers.push({ ns: current.expression.text, member: current.name.text });
+    }
     if (ts.isIdentifier(current)) {
       const text = current.text;
       if (!text) return;
-      if (ts.isParameter(current) || ts.isPropertyDeclaration(current)) return;
+      const parent = current.parent;
+      if (
+        (ts.isVariableDeclaration(parent) && parent.name === current)
+        || (ts.isFunctionDeclaration(parent) && parent.name === current)
+        || (ts.isClassDeclaration(parent) && parent.name === current)
+        || (ts.isParameter(parent) && parent.name === current)
+        || (ts.isImportClause(parent) && parent.name === current)
+        || (ts.isImportSpecifier(parent) && parent.name === current)
+        || (ts.isNamespaceImport(parent) && parent.name === current)
+        || (ts.isPropertyAccessExpression(parent) && parent.name === current)
+        || (ts.isPropertyDeclaration(parent) && parent.name === current)
+        || (ts.isMethodDeclaration(parent) && parent.name === current)
+      ) return;
       names.add(text);
     }
     ts.forEachChild(current, visit);
   }
   visit(node);
+}
+
+function collectTestReferences(node: ts.Node): { names: string[]; namespaceMembers: Array<{ ns: string; member: string }>; newExpressions: string[]; instanceVariables: Array<{ variable: string; className: string }>; instanceMethodCalls: Array<{ variable: string; method: string }> } {
+  const names = new Set<string>();
+  const namespaceMembers: Array<{ ns: string; member: string }> = [];
+  const newExpressions = new Set<string>();
+  const instanceVariables: Array<{ variable: string; className: string }> = [];
+  const instanceMethodCalls: Array<{ variable: string; method: string }> = [];
+  const instances = new Map<string, string>();
+
+  function visit(current: ts.Node): void {
+    if (ts.isVariableDeclaration(current) && ts.isIdentifier(current.name) && current.initializer && ts.isNewExpression(current.initializer) && ts.isIdentifier(current.initializer.expression)) {
+      const className = current.initializer.expression.text;
+      instances.set(current.name.text, className);
+      instanceVariables.push({ variable: current.name.text, className });
+      newExpressions.add(className);
+    } else if (ts.isNewExpression(current) && ts.isIdentifier(current.expression)) {
+      newExpressions.add(current.expression.text);
+    }
+    if (ts.isCallExpression(current) && ts.isPropertyAccessExpression(current.expression) && ts.isIdentifier(current.expression.expression)) {
+      const variable = current.expression.expression.text;
+      if (instances.has(variable)) instanceMethodCalls.push({ variable, method: current.expression.name.text });
+    }
+    if (ts.isPropertyAccessExpression(current) && ts.isIdentifier(current.expression)) {
+      namespaceMembers.push({ ns: current.expression.text, member: current.name.text });
+    }
+    if (ts.isIdentifier(current)) {
+      const parent = current.parent;
+      if (
+        (ts.isVariableDeclaration(parent) && parent.name === current)
+        || (ts.isFunctionDeclaration(parent) && parent.name === current)
+        || (ts.isClassDeclaration(parent) && parent.name === current)
+        || (ts.isParameter(parent) && parent.name === current)
+        || (ts.isPropertyAccessExpression(parent) && parent.name === current)
+        || (ts.isPropertyDeclaration(parent) && parent.name === current)
+        || (ts.isMethodDeclaration(parent) && parent.name === current)
+      ) return;
+      names.add(current.text);
+    }
+    ts.forEachChild(current, visit);
+  }
+  visit(node);
+  return {
+    names: [...names].sort((a, b) => a < b ? -1 : a > b ? 1 : 0),
+    namespaceMembers: namespaceMembers.sort((a, b) => a.ns < b.ns ? -1 : a.ns > b.ns ? 1 : a.member < b.member ? -1 : a.member > b.member ? 1 : 0),
+    newExpressions: [...newExpressions].sort((a, b) => a < b ? -1 : a > b ? 1 : 0),
+    instanceVariables,
+    instanceMethodCalls,
+  };
 }
 
 function hasTestObjectInitializer(expr: ts.Expression): boolean {
@@ -270,6 +338,7 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
   const testObjectExports = new Set<string>();
   const testTree: TestTreeRecord[] = [];
   const declaredNames = new Set<string>();
+  const namespaceMembers: Array<{ ns: string; member: string }> = [];
 
   for (const stmt of sourceFile.statements) {
     if (ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier)) {
@@ -277,7 +346,7 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
       const clause = stmt.importClause;
       if (clause) {
         if (clause.name) {
-          imports.push({ specifier, kind: 'default', imported: clause.name.text, local: clause.name.text, typeOnly: clause.isTypeOnly, line: stmt.getStart() + 1 });
+          imports.push({ specifier, kind: 'default', imported: 'default', local: clause.name.text, typeOnly: clause.isTypeOnly, line: stmt.getStart() + 1 });
           declaredNames.add(clause.name.text);
         }
         if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
@@ -324,10 +393,12 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
       exports.push({ exportName: 'default', localName: ts.isIdentifier(stmt.expression) ? stmt.expression.text : null, from: null, importedName: null, star: false });
     }
     if (ts.isFunctionDeclaration(stmt) && isExported(stmt) && stmt.name) {
-      exports.push({ exportName: stmt.name.text, localName: stmt.name.text, from: null, importedName: null, star: false });
+      const isDefault = ts.getModifiers(stmt)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword) ?? false;
+      exports.push({ exportName: isDefault ? 'default' : stmt.name.text, localName: stmt.name.text, from: null, importedName: null, star: false });
     }
     if (ts.isClassDeclaration(stmt) && isExported(stmt) && stmt.name) {
-      exports.push({ exportName: stmt.name.text, localName: stmt.name.text, from: null, importedName: null, star: false });
+      const isDefault = ts.getModifiers(stmt)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword) ?? false;
+      exports.push({ exportName: isDefault ? 'default' : stmt.name.text, localName: stmt.name.text, from: null, importedName: null, star: false });
     }
     if (ts.isVariableStatement(stmt) && stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) {
       for (const decl of stmt.declarationList.declarations) {
@@ -614,6 +685,9 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
             const baseId = `test:${toPosix(relPath)}::${suitePath.length > 0 ? `${suitePath.join(' > ')} > ` : ''}${title ?? `L${line + 1}`}`;
             const seen = testTree.filter((entry) => entry.id === baseId || entry.id.startsWith(`${baseId}#`)).length;
             const callbackGotos = callback ? collectGotoStrings(callback.body) : [];
+            const callbackFacts = callback ? collectTestReferences(callback.body) : {
+              names: [], namespaceMembers: [], newExpressions: [], instanceVariables: [], instanceMethodCalls: [],
+            };
             const testRecord: TestTreeRecord = {
               id: seen === 0 ? baseId : `${baseId}#${seen + 1}`,
               file: toPosix(relPath),
@@ -630,6 +704,11 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
               calls: [],
               navigatesTo: callbackGotos,
               inLoop,
+              referencedNames: callbackFacts.names,
+              namespaceMembers: callbackFacts.namespaceMembers,
+              newExpressions: callbackFacts.newExpressions,
+              instanceVariables: callbackFacts.instanceVariables,
+              instanceMethodCalls: callbackFacts.instanceMethodCalls,
               gotos: callbackGotos,
             };
 
@@ -667,7 +746,7 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
     }
   }
 
-  collectReferences(sourceFile, references);
+  collectReferences(sourceFile, references, namespaceMembers);
 
   return {
     imports,
@@ -678,6 +757,7 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
     testObjectExports,
     testTree,
     references,
+    namespaceMembers,
     cjs: /module\.exports|require\s*\(/.test(sourceFile.text),
   };
 }
