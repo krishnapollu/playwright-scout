@@ -4,9 +4,16 @@ import path from 'node:path';
 import { discoverFiles, detectLanguage } from '../src/discover.js';
 import { extractFacts } from '../src/facts.js';
 import { parseFile } from '../src/parse.js';
+import { normalizePath } from '../src/paths.js';
 import { resolveExportFromFacts, resolveSpecifier } from '../src/resolve.js';
 
 const SAMPLE = path.resolve(import.meta.dirname, '../../../fixtures/sample-suite');
+
+describe('normalizePath', () => {
+  it('converts Windows separators to POSIX separators on any host', () => {
+    expect(normalizePath(path.win32.join('pages', 'login.page.ts'))).toBe('pages/login.page.ts');
+  });
+});
 
 describe('discoverFiles', () => {
   it('finds spec files under testDir', async () => {

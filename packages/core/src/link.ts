@@ -1,6 +1,5 @@
 import path from 'node:path';
-import { extractFacts, type FileFacts } from './facts.js';
-import { parseFile } from './parse.js';
+import type { FileFacts } from './facts.js';
 import type { TsAliasConfig } from './config.js';
 import { resolveExportFromFacts, resolveSpecifier } from './resolve.js';
 import type { Diagnostic, FixtureEntry, HelperEntry, MethodEntry, SpecEntry, Stats, TagEntry, TestEntry } from './schema.js';
@@ -236,8 +235,4 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
     stats,
     helperDirs,
   };
-}
-
-export function buildFactsForFile(relPath: string, text: string, isSpec: boolean): FileFacts {
-  return extractFacts(relPath, parseFile(relPath, text), isSpec);
 }
