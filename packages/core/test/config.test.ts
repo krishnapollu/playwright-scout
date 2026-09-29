@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { readConfig, readTsAliasConfig } from '../src/config.js';
+import { findConfigFile, readConfig, readTsAliasConfig } from '../src/config.js';
 
 const SAMPLE = path.resolve(import.meta.dirname, '../../../fixtures/sample-suite');
 
 describe('readConfig', () => {
+  it('finds the sample Playwright config file', () => {
+    expect(findConfigFile(SAMPLE)).toBe(path.join(SAMPLE, 'playwright.config.ts'));
+  });
+
   it('reads testDir and projects from sample-suite', () => {
     const r = readConfig(SAMPLE);
     expect(r.configFile).toBe('playwright.config.ts');

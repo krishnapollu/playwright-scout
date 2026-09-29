@@ -1,68 +1,147 @@
-import { Command } from 'commander';
+import { Command, CommanderError, InvalidArgumentError, Option } from 'commander';
 import { mapCommand } from './commands/map.js';
 import { findCommand } from './commands/find.js';
 import { showCommand } from './commands/show.js';
 import { installSkillCommand } from './commands/installSkill.js';
-import { readIndex } from 'playwright-scout-core';
+import { readIndex, ScoutError } from 'playwright-scout-core';
+import { formatFindResults, formatShowEntry } from './format.js';
 
-export function createProgram() {
+export interface OutputWriters {
+  stdout: (text: string) => void;
+  stderr: (text: string) => void;
+}
+
+const defaultWriters: OutputWriters = {
+  stdout: (text) => process.stdout.write(text),
+  stderr: (text) => process.stderr.write(text),
+};
+
+function exitCodeFor(error: unknown): number {
+  if (error instanceof CommanderError) return error.code === 'commander.helpDisplayed' || error.code === 'commander.version' ? 0 : 2;
+  if (error instanceof ScoutError) {
+    if (error.code === 'NO_TESTS_FOUND') return 3;
+    if (error.code === 'INDEX_MISSING' || error.code === 'INDEX_INVALID' || error.code === 'INDEX_SCHEMA_MISMATCH') return 4;
+    if (error.code === 'NOT_FOUND' || error.code === 'AMBIGUOUS') return 5;
+    if (error.code === 'USAGE') return 2;
+  }
+  return 1;
+}
+
+function errorText(error: unknown): string {
+  if (error instanceof ScoutError) {
+    if (error.code === 'INDEX_MISSING' || error.code === 'INDEX_INVALID' || error.code === 'INDEX_SCHEMA_MISMATCH') {
+      return 'scout: index missing or invalid. Run: npx playwright-scout map';
+    }
+    return `scout: ${error.message}`;
+  }
+  if (error instanceof CommanderError) return '';
+  const message = error instanceof Error ? error.message : String(error);
+  return `scout: ${message}`;
+}
+
+export function createProgram(writers: OutputWriters = defaultWriters) {
   const program = new Command();
   program.name('playwright-scout');
+  program.exitOverride();
+  program.configureOutput({
+    writeOut: (text) => writers.stdout(text),
+    writeErr: (text) => writers.stderr(text),
+    outputError: (text, write) => write(text),
+  });
 
   program
     .command('map')
     .option('--root <dir>', 'root directory', process.cwd())
+    .option('--out <file>', 'output index file')
+    .option('--include <glob...>', 'include support files')
+    .option('--no-timestamp', 'omit generatedAt timestamp')
+    .option('--if-stale', 'skip if the index is current')
     .option('--json')
+    .option('--verbose', 'list diagnostics')
     .option('--quiet')
     .action(async (options) => {
-      const output = await mapCommand(options.root ?? process.cwd(), { json: !!options.json, quiet: !!options.quiet });
-      console.log(output);
+      const result = await mapCommand(options.root ?? process.cwd(), {
+        json: !!options.json,
+        quiet: !!options.quiet,
+        noTimestamp: options.timestamp === false,
+        ifStale: !!options.ifStale,
+        include: options.include,
+        out: options.out,
+        verbose: !!options.verbose,
+      });
+      if (result.exitCode === 3) throw new ScoutError('NO_TESTS_FOUND', result.stderr);
+      if (result.stderr) writers.stderr(`${result.stderr}\n`);
+      if (result.stdout) writers.stdout(`${result.stdout}\n`);
     });
 
   program
     .command('find <query...>')
     .option('--root <dir>', 'root directory', process.cwd())
-    .option('--kind <kind>', 'kind', 'any')
-    .option('--limit <limit>', 'limit', '10')
+    .addOption(new Option('--kind <kind>', 'kind').choices(['helper', 'method', 'test', 'fixture', 'any']).default('any'))
+    .option('--limit <limit>', 'limit', (value: string) => {
+      const limit = Number(value);
+      if (!Number.isInteger(limit) || limit < 1) throw new InvalidArgumentError('limit must be a positive integer');
+      return limit;
+    }, 10)
+    .option('--json')
     .action(async (queryParts: string[], options) => {
       const index = await readIndex(options.root ?? process.cwd());
       const query = queryParts.join(' ');
-      const result = findCommand(index, query, options.kind ?? 'any', Number(options.limit ?? 10));
-      console.log(JSON.stringify(result));
+      const result = findCommand(index, query, options.kind ?? 'any', options.limit ?? 10);
+      const output = options.json
+        ? JSON.stringify(result.map(({ id, kind, label, file, line, score, usedBySpecCount, summary }) => ({ id, kind, label, file, line, score, usedBySpecCount, summary })))
+        : formatFindResults(query, result);
+      writers.stdout(`${output}\n`);
     });
 
   program
     .command('show <id>')
     .option('--root <dir>', 'root directory', process.cwd())
+    .option('--json')
     .action(async (id: string, options) => {
       const index = await readIndex(options.root ?? process.cwd());
       const result = showCommand(index, id);
-      console.log(JSON.stringify(result));
+      if (result.status === 'not_found') throw new ScoutError('NOT_FOUND', `not found: ${id}`);
+      if (result.status === 'ambiguous') {
+        writers.stderr(`${result.candidates.slice(0, 10).join('\n')}\n`);
+        throw new ScoutError('AMBIGUOUS', `ambiguous: ${id}`);
+      }
+      const output = options.json ? JSON.stringify(result.entry) : formatShowEntry(index, result.entry);
+      writers.stdout(`${output}\n`);
     });
 
   program
     .command('install-skill')
-    .option('--target <target>', 'agent target', 'agents')
+    .addOption(new Option('--target <target>', 'agent target').choices(['claude', 'agents', 'github', 'cursor', 'all']).default('agents'))
     .option('--root <dir>', 'root directory', process.cwd())
     .option('--global', 'install into the global Claude config directory')
     .option('--force', 'overwrite an existing skill file')
     .action(async (options) => {
-      try {
-        const output = await installSkillCommand({
-          root: options.root ?? process.cwd(),
-          target: options.target ?? 'agents',
-          global: !!options.global,
-          force: !!options.force,
-        });
-        console.log(output);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error(`scout: ${message}`);
-        process.exitCode = 2;
+      if (options.global && options.target !== 'claude') {
+        throw new ScoutError('USAGE', '`--global` is only valid with `--target claude`.');
       }
+      const output = await installSkillCommand({
+        root: options.root ?? process.cwd(),
+        target: options.target ?? 'agents',
+        global: !!options.global,
+        force: !!options.force,
+      });
+      writers.stdout(`${output}\n`);
     });
 
   return program;
 }
 
 export const program = createProgram();
+
+export async function main(argv: string[] = process.argv, writers: OutputWriters = defaultWriters): Promise<number> {
+  const program = createProgram(writers);
+  try {
+    await program.parseAsync(argv);
+    return 0;
+  } catch (error) {
+    const text = errorText(error);
+    if (text) writers.stderr(`${text}\n`);
+    return exitCodeFor(error);
+  }
+}

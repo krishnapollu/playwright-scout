@@ -29,6 +29,18 @@
   - The parser and builder handle empty/comment-only files, large files, and config/path edge cases without crashing.
 - [x] T10 Skill & installer
   - Implemented the bundled skill installer and wired the CLI install-skill command to copy the correct SKILL.md into agent target directories.
-- [ ] T11 Docs
-- [ ] T12 Dry run on real code
-- [ ] T13 Release prep
+- [x] T11 Docs — README examples, known limitations, and installer path guidance synchronized with verified CLI behavior.
+- [x] T12 Dry run on real code — Mapped public Microsoft and Checkly Playwright examples without crashes; timings and counts are in `docs/DECISIONS.md`.
+- [x] T13 Release prep — Both 0.1.0 tarballs pass dry-run contents review and installed-package smoke tests; publish is intentionally left to the human maintainer.
+
+## Fix phase
+- Baseline recorded for F0: golden suite currently failing with 21/25 tests failing (4 passing), after the sample-suite regression test was added and before any fix work begins.
+- [x] F1 — Fix the test-tree extraction (`facts.ts`): corrected Playwright `describe`/`test` detection, 1-based coordinates, inherited tags and modifiers, dynamic title rendering, loop detection, and `.goto()` capture; verified with the F1 golden subset.
+- [x] F2 — Clean up `build.ts`: parse each file once, use discovered specs and source language, report skipped files and dynamic titles, and sort diagnostics deterministically; `npx tsc -b` and the F2 golden subset pass.
+- [x] F3 — Build the reachable module graph, resolve imports/exports from cached facts, and link helpers to files and individual tests; facts/resolver regressions and the golden acceptance slice pass.
+- [x] F4 — Verified fixture extraction and test-object exclusion against the golden suite; all three targeted assertions pass.
+- [x] F5 — Implemented weighted search fields, deterministic ordering, strict show resolution, and ambiguity reporting; `npm run check` passes with 57 tests.
+- [x] F6 — Wired the compiled CLI options, output formatting, injected writers, and documented exit codes; verified built map/find/show/missing-index commands and `npm run check` passes with 60 tests.
+- [x] F7 — Added parse, build, and link tests plus empty/comment, oversized, CRLF, non-UTF8, Windows-path, and 1,000-spec robustness coverage; `npm run check` passes with 70 tests.
+- [x] F8 — Updated README and skill commands from fresh sample-suite runs, added known limitations and installer-path verification guidance, and recorded helper-directory counting; `npm run check` passes with 70 tests.
+- [x] F9 — Completed public-project dry runs, package metadata and contents review, and fresh-project installation/execution of both tarballs; publishing remains a human-only step.

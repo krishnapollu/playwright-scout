@@ -1,5 +1,4 @@
 import ts from 'typescript';
-import { parseFile } from './parse.js';
 import type { MethodEntry } from './schema.js';
 
 export interface ImportFact {
@@ -72,6 +71,12 @@ export interface TestTreeRecord {
   calls: string[];
   navigatesTo: string[];
   inLoop: boolean;
+  referencedNames: string[];
+  namespaceMembers: Array<{ ns: string; member: string }>;
+  newExpressions: string[];
+  instanceVariables: Array<{ variable: string; className: string }>;
+  instanceMethodCalls: Array<{ variable: string; method: string }>;
+  gotos?: string[];
 }
 
 export interface FileFacts {
@@ -83,6 +88,7 @@ export interface FileFacts {
   testObjectExports: Set<string>;
   testTree: TestTreeRecord[];
   references: Set<string>;
+  namespaceMembers: Array<{ ns: string; member: string }>;
   cjs: boolean;
 }
 
@@ -147,7 +153,11 @@ function getValuePreview(expr: ts.Expression | undefined): string | null {
   return text.length > 0 ? truncateText(text, 80) : null;
 }
 
-function collectClassMethods(node: ts.ClassDeclaration): MethodEntry[] {
+function lineNumber(sourceFile: ts.SourceFile, position: number): number {
+  return sourceFile.getLineAndCharacterOfPosition(position).line + 1;
+}
+
+function collectClassMethods(node: ts.ClassDeclaration, fileName: string, ownerName: string, sourceFile: ts.SourceFile): MethodEntry[] {
   const methods: MethodEntry[] = [];
   for (const member of node.members) {
     if (ts.isMethodDeclaration(member) || ts.isGetAccessorDeclaration(member) || ts.isSetAccessorDeclaration(member)) {
@@ -159,7 +169,7 @@ function collectClassMethods(node: ts.ClassDeclaration): MethodEntry[] {
         : 'public';
       if (modifiers.some((m: ts.Modifier) => m.kind === ts.SyntaxKind.PrivateKeyword)) continue;
       methods.push({
-        id: `${createHelperId('', node.name?.text ?? 'class')}.${name}`,
+        id: `${createHelperId(fileName, ownerName)}.${name}`,
         name,
         params: getFunctionParams(member),
         returns: getReturnType(member),
@@ -167,7 +177,7 @@ function collectClassMethods(node: ts.ClassDeclaration): MethodEntry[] {
         isStatic: modifiers.some((m: ts.Modifier) => m.kind === ts.SyntaxKind.StaticKeyword),
         visibility,
         doc: getJsDoc(member),
-        line: member.getStart() + 1,
+        line: lineNumber(sourceFile, member.getStart(sourceFile)),
       });
     }
   }
@@ -189,17 +199,81 @@ function collectGotoStrings(node: ts.Node): string[] {
   return [...values].sort();
 }
 
-function collectReferences(node: ts.Node, names: Set<string>): void {
+function collectReferences(node: ts.Node, names: Set<string>, namespaceMembers: Array<{ ns: string; member: string }> = []): void {
   function visit(current: ts.Node): void {
+    if (ts.isPropertyAccessExpression(current) && ts.isIdentifier(current.expression)) {
+      namespaceMembers.push({ ns: current.expression.text, member: current.name.text });
+    }
     if (ts.isIdentifier(current)) {
       const text = current.text;
       if (!text) return;
-      if (ts.isParameter(current) || ts.isPropertyDeclaration(current)) return;
+      const parent = current.parent;
+      if (
+        (ts.isVariableDeclaration(parent) && parent.name === current)
+        || (ts.isFunctionDeclaration(parent) && parent.name === current)
+        || (ts.isClassDeclaration(parent) && parent.name === current)
+        || (ts.isParameter(parent) && parent.name === current)
+        || (ts.isImportClause(parent) && parent.name === current)
+        || (ts.isImportSpecifier(parent) && parent.name === current)
+        || (ts.isNamespaceImport(parent) && parent.name === current)
+        || (ts.isPropertyAccessExpression(parent) && parent.name === current)
+        || (ts.isPropertyDeclaration(parent) && parent.name === current)
+        || (ts.isMethodDeclaration(parent) && parent.name === current)
+      ) return;
       names.add(text);
     }
     ts.forEachChild(current, visit);
   }
   visit(node);
+}
+
+function collectTestReferences(node: ts.Node): { names: string[]; namespaceMembers: Array<{ ns: string; member: string }>; newExpressions: string[]; instanceVariables: Array<{ variable: string; className: string }>; instanceMethodCalls: Array<{ variable: string; method: string }> } {
+  const names = new Set<string>();
+  const namespaceMembers: Array<{ ns: string; member: string }> = [];
+  const newExpressions = new Set<string>();
+  const instanceVariables: Array<{ variable: string; className: string }> = [];
+  const instanceMethodCalls: Array<{ variable: string; method: string }> = [];
+  const instances = new Map<string, string>();
+
+  function visit(current: ts.Node): void {
+    if (ts.isVariableDeclaration(current) && ts.isIdentifier(current.name) && current.initializer && ts.isNewExpression(current.initializer) && ts.isIdentifier(current.initializer.expression)) {
+      const className = current.initializer.expression.text;
+      instances.set(current.name.text, className);
+      instanceVariables.push({ variable: current.name.text, className });
+      newExpressions.add(className);
+    } else if (ts.isNewExpression(current) && ts.isIdentifier(current.expression)) {
+      newExpressions.add(current.expression.text);
+    }
+    if (ts.isCallExpression(current) && ts.isPropertyAccessExpression(current.expression) && ts.isIdentifier(current.expression.expression)) {
+      const variable = current.expression.expression.text;
+      if (instances.has(variable)) instanceMethodCalls.push({ variable, method: current.expression.name.text });
+    }
+    if (ts.isPropertyAccessExpression(current) && ts.isIdentifier(current.expression)) {
+      namespaceMembers.push({ ns: current.expression.text, member: current.name.text });
+    }
+    if (ts.isIdentifier(current)) {
+      const parent = current.parent;
+      if (
+        (ts.isVariableDeclaration(parent) && parent.name === current)
+        || (ts.isFunctionDeclaration(parent) && parent.name === current)
+        || (ts.isClassDeclaration(parent) && parent.name === current)
+        || (ts.isParameter(parent) && parent.name === current)
+        || (ts.isPropertyAccessExpression(parent) && parent.name === current)
+        || (ts.isPropertyDeclaration(parent) && parent.name === current)
+        || (ts.isMethodDeclaration(parent) && parent.name === current)
+      ) return;
+      names.add(current.text);
+    }
+    ts.forEachChild(current, visit);
+  }
+  visit(node);
+  return {
+    names: [...names].sort((a, b) => a < b ? -1 : a > b ? 1 : 0),
+    namespaceMembers: namespaceMembers.sort((a, b) => a.ns < b.ns ? -1 : a.ns > b.ns ? 1 : a.member < b.member ? -1 : a.member > b.member ? 1 : 0),
+    newExpressions: [...newExpressions].sort((a, b) => a < b ? -1 : a > b ? 1 : 0),
+    instanceVariables,
+    instanceMethodCalls,
+  };
 }
 
 function hasTestObjectInitializer(expr: ts.Expression): boolean {
@@ -238,8 +312,27 @@ function parseFixtureConfig(node: ts.Expression): { scope: 'test' | 'worker'; au
   return result;
 }
 
-export function extractFacts(relPath: string, text: string, isSpec: boolean): FileFacts {
-  const sourceFile = parseFile(relPath, text);
+function getDefaultExportName(node: ts.ClassDeclaration): string {
+  const modifiers = ts.getModifiers(node) ?? [];
+  return modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword) ? 'default' : node.name?.getText() ?? '';
+}
+
+function extractFixtureDependsOn(node: ts.Expression | undefined): string[] {
+  if (!node || (!ts.isArrowFunction(node) && !ts.isFunctionExpression(node))) return [];
+  const deps = new Set<string>();
+  const firstParam = node.parameters[0];
+  if (firstParam && ts.isObjectBindingPattern(firstParam.name)) {
+    for (const element of firstParam.name.elements) {
+      if (ts.isBindingElement(element)) {
+        const name = ts.isIdentifier(element.name) ? element.name.text : null;
+        if (name && name !== 'use') deps.add(name);
+      }
+    }
+  }
+  return [...deps];
+}
+
+export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec: boolean): FileFacts {
   const imports: ImportFact[] = [];
   const localDecls: Record<string, LocalDecl> = {};
   const exports: ExportFact[] = [];
@@ -249,6 +342,7 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
   const testObjectExports = new Set<string>();
   const testTree: TestTreeRecord[] = [];
   const declaredNames = new Set<string>();
+  const namespaceMembers: Array<{ ns: string; member: string }> = [];
 
   for (const stmt of sourceFile.statements) {
     if (ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier)) {
@@ -256,36 +350,36 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
       const clause = stmt.importClause;
       if (clause) {
         if (clause.name) {
-          imports.push({ specifier, kind: 'default', imported: clause.name.text, local: clause.name.text, typeOnly: clause.isTypeOnly, line: stmt.getStart() + 1 });
+          imports.push({ specifier, kind: 'default', imported: 'default', local: clause.name.text, typeOnly: clause.isTypeOnly, line: lineNumber(sourceFile, stmt.getStart(sourceFile)) });
           declaredNames.add(clause.name.text);
         }
         if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
           for (const element of clause.namedBindings.elements) {
-            imports.push({ specifier, kind: 'named', imported: element.propertyName?.text ?? element.name.text, local: element.name.text, typeOnly: element.isTypeOnly, line: stmt.getStart() + 1 });
+            imports.push({ specifier, kind: 'named', imported: element.propertyName?.text ?? element.name.text, local: element.name.text, typeOnly: element.isTypeOnly, line: lineNumber(sourceFile, stmt.getStart(sourceFile)) });
             declaredNames.add(element.name.text);
           }
         }
         if (clause.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
-          imports.push({ specifier, kind: 'namespace', imported: null, local: clause.namedBindings.name.text, typeOnly: clause.isTypeOnly, line: stmt.getStart() + 1 });
+          imports.push({ specifier, kind: 'namespace', imported: null, local: clause.namedBindings.name.text, typeOnly: clause.isTypeOnly, line: lineNumber(sourceFile, stmt.getStart(sourceFile)) });
           declaredNames.add(clause.namedBindings.name.text);
         }
       }
     }
 
     if (ts.isFunctionDeclaration(stmt) && stmt.name) {
-      localDecls[stmt.name.text] = { kind: 'function', name: stmt.name.text, line: stmt.getStart() + 1 };
+      localDecls[stmt.name.text] = { kind: 'function', name: stmt.name.text, line: lineNumber(sourceFile, stmt.getStart(sourceFile)) };
       declaredNames.add(stmt.name.text);
     }
 
     if (ts.isClassDeclaration(stmt) && stmt.name) {
-      localDecls[stmt.name.text] = { kind: 'class', name: stmt.name.text, line: stmt.getStart() + 1 };
+      localDecls[stmt.name.text] = { kind: 'class', name: stmt.name.text, line: lineNumber(sourceFile, stmt.getStart(sourceFile)) };
       declaredNames.add(stmt.name.text);
     }
 
     if (ts.isVariableStatement(stmt)) {
       for (const decl of stmt.declarationList.declarations) {
         if (ts.isIdentifier(decl.name)) {
-          localDecls[decl.name.text] = { kind: 'constant', name: decl.name.text, line: stmt.getStart() + 1 };
+          localDecls[decl.name.text] = { kind: 'constant', name: decl.name.text, line: lineNumber(sourceFile, stmt.getStart(sourceFile)) };
           declaredNames.add(decl.name.text);
         }
       }
@@ -303,10 +397,12 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
       exports.push({ exportName: 'default', localName: ts.isIdentifier(stmt.expression) ? stmt.expression.text : null, from: null, importedName: null, star: false });
     }
     if (ts.isFunctionDeclaration(stmt) && isExported(stmt) && stmt.name) {
-      exports.push({ exportName: stmt.name.text, localName: stmt.name.text, from: null, importedName: null, star: false });
+      const isDefault = ts.getModifiers(stmt)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword) ?? false;
+      exports.push({ exportName: isDefault ? 'default' : stmt.name.text, localName: stmt.name.text, from: null, importedName: null, star: false });
     }
     if (ts.isClassDeclaration(stmt) && isExported(stmt) && stmt.name) {
-      exports.push({ exportName: stmt.name.text, localName: stmt.name.text, from: null, importedName: null, star: false });
+      const isDefault = ts.getModifiers(stmt)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword) ?? false;
+      exports.push({ exportName: isDefault ? 'default' : stmt.name.text, localName: stmt.name.text, from: null, importedName: null, star: false });
     }
     if (ts.isVariableStatement(stmt) && stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) {
       for (const decl of stmt.declarationList.declarations) {
@@ -332,15 +428,16 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
               const key = ts.isIdentifier(prop.name) ? prop.name.text : ts.isStringLiteral(prop.name) ? prop.name.text : null;
               if (!key) continue;
               const cfg = parseFixtureConfig(prop.initializer);
+              const dependsOn = cfg.dependsOn.length > 0 ? cfg.dependsOn : extractFixtureDependsOn(prop.initializer);
               fixtureDefs.push({
                 id: `fixture:${toPosix(relPath)}#${key}`,
                 name: key,
                 file: toPosix(relPath),
-                line: prop.getStart() + 1,
+                line: lineNumber(sourceFile, prop.getStart(sourceFile)),
                 scope: cfg.scope,
                 auto: cfg.auto,
                 option: cfg.option,
-                dependsOn: cfg.dependsOn,
+                dependsOn,
                 testObject: target,
               });
             }
@@ -353,14 +450,15 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
   for (const stmt of sourceFile.statements) {
     if (ts.isFunctionDeclaration(stmt) && stmt.name) {
       const kind = 'function';
+      const exportName = !!ts.getModifiers(stmt)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword) ? 'default' : stmt.name.text;
       const detail: HelperDetail = {
         id: createHelperId(toPosix(relPath), stmt.name.text),
         name: stmt.name.text,
-        exportName: stmt.name.text,
+        exportName,
         kind,
         file: toPosix(relPath),
-        line: stmt.getStart() + 1,
-        endLine: stmt.getEnd() + 1,
+        line: lineNumber(sourceFile, stmt.getStart(sourceFile)),
+        endLine: lineNumber(sourceFile, stmt.getEnd()),
         isAsync: !!stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword),
         params: getFunctionParams(stmt),
         returns: getReturnType(stmt),
@@ -384,11 +482,11 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
       const detail: HelperDetail = {
         id: createHelperId(toPosix(relPath), stmt.name.text),
         name: stmt.name.text,
-        exportName: stmt.name.text,
+        exportName: getDefaultExportName(stmt),
         kind: 'class',
         file: toPosix(relPath),
-        line: stmt.getStart() + 1,
-        endLine: stmt.getEnd() + 1,
+        line: lineNumber(sourceFile, stmt.getStart(sourceFile)),
+        endLine: lineNumber(sourceFile, stmt.getEnd()),
         isAsync: false,
         params: null,
         returns: null,
@@ -396,7 +494,7 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
         extends: stmt.heritageClauses?.[0]?.types[0]?.expression.getText() ?? null,
         category,
         doc: getJsDoc(stmt),
-        methods: collectClassMethods(stmt),
+        methods: collectClassMethods(stmt, toPosix(relPath), stmt.name.text, sourceFile),
         navigatesTo: collectGotoStrings(stmt),
       };
       helperDetails.push(detail);
@@ -406,26 +504,28 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
         if (!ts.isIdentifier(decl.name)) continue;
         const name = decl.name.text;
         const isExportedVar = !!stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
-        if (decl.initializer && !ts.isArrowFunction(decl.initializer) && !ts.isFunctionExpression(decl.initializer) && !hasTestObjectInitializer(decl.initializer)) {
+        const isDefault = !!stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword);
+        if (decl.initializer && !hasTestObjectInitializer(decl.initializer)) {
+          const isFunctionLike = ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer);
           const detail: HelperDetail = {
             id: createHelperId(toPosix(relPath), name),
             name,
-            exportName: name,
-            kind: 'constant',
+            exportName: isDefault ? 'default' : name,
+            kind: isFunctionLike ? 'function' : 'constant',
             file: toPosix(relPath),
-            line: stmt.getStart() + 1,
-            endLine: stmt.getEnd() + 1,
-            isAsync: false,
-            params: null,
-            returns: null,
-            valuePreview: getValuePreview(decl.initializer),
+            line: lineNumber(sourceFile, stmt.getStart(sourceFile)),
+            endLine: lineNumber(sourceFile, stmt.getEnd()),
+            isAsync: !!(decl.initializer && (ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer)) && decl.initializer.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword)),
+            params: isFunctionLike ? getFunctionParams(decl.initializer) : null,
+            returns: isFunctionLike ? getReturnType(decl.initializer) : null,
+            valuePreview: isFunctionLike ? null : getValuePreview(decl.initializer),
             extends: null,
             category: 'helper',
             doc: getJsDoc(stmt),
             methods: [],
             navigatesTo: collectGotoStrings(stmt),
           };
-          if (isExportedVar || name === 'USERS' || name === 'COUPON_CODE') helperDetails.push(detail);
+          if (isExportedVar || isDefault || name === 'USERS' || name === 'COUPON_CODE' || isFunctionLike) helperDetails.push(detail);
         }
       }
     }
@@ -451,41 +551,121 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
       }
     }
     if (testBindings.size > 0 || sourceFile.text.includes('test.')) {
+      function getAccessChain(expression: ts.Expression): { base: string | null; parts: string[] } {
+        const parts: string[] = [];
+        let current: ts.Expression = expression;
+
+        while (ts.isPropertyAccessExpression(current)) {
+          parts.unshift(current.name.text);
+          current = current.expression;
+        }
+        if (ts.isIdentifier(current)) {
+          parts.unshift(current.text);
+          return { base: current.text, parts };
+        }
+        return { base: null, parts };
+      }
+
+      function parseTitle(text: ts.Expression | undefined): { title: string | null; titleDynamic: boolean; titleSource: string | null } {
+        if (!text) {
+          return { title: null, titleDynamic: true, titleSource: null };
+        }
+        if (ts.isStringLiteralLike(text) || ts.isNoSubstitutionTemplateLiteral(text)) {
+          return { title: text.text, titleDynamic: false, titleSource: null };
+        }
+        if (ts.isTemplateExpression(text)) {
+          let title = text.head.text;
+          for (const span of text.templateSpans) {
+            title += '{…}' + span.literal.text;
+          }
+          return { title, titleDynamic: true, titleSource: null };
+        }
+        return { title: null, titleDynamic: true, titleSource: truncateText(text.getText(sourceFile), 80) };
+      }
+
+      function tagValueToStrings(value: ts.Expression): string[] {
+        if (ts.isStringLiteral(value)) {
+          return [value.text.startsWith('@') ? value.text : `@${value.text}`];
+        }
+        if (ts.isArrayLiteralExpression(value)) {
+          const values: string[] = [];
+          for (const item of value.elements) {
+            if (ts.isStringLiteral(item)) {
+              const text = item.text.startsWith('@') ? item.text : `@${item.text}`;
+              values.push(text);
+            }
+          }
+          return values;
+        }
+        return [];
+      }
+
+      function collectTagsFromDetails(details: ts.Expression | undefined): string[] {
+        if (!details || !ts.isObjectLiteralExpression(details)) return [];
+        const nextTags: string[] = [];
+        for (const prop of details.properties) {
+          if (!ts.isPropertyAssignment(prop)) continue;
+          const key = ts.isIdentifier(prop.name) ? prop.name.text : ts.isStringLiteral(prop.name) ? prop.name.text : null;
+          if (key !== 'tag') continue;
+          nextTags.push(...tagValueToStrings(prop.initializer));
+        }
+        return nextTags;
+      }
+
+      function collectTitleTags(title: string | null, titleText: string | undefined): string[] {
+        if (!titleText) return [];
+        const tags = [...titleText.matchAll(/(?:^|\s)(@[-\w:]+)/g)]
+          .map((match) => match[1])
+          .filter((tag): tag is string => tag !== undefined);
+        if (title && title.startsWith('@')) {
+          tags.push(title);
+        }
+        return tags.filter((tag) => tag.startsWith('@'));
+      }
+
+      function uniqueSorted(values: Iterable<string>): string[] {
+        return [...new Set(values)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      }
+
       function visitTestCalls(node: ts.Node, suitePath: string[], tags: string[], inLoop: boolean): void {
         if (ts.isCallExpression(node)) {
           const expr = node.expression;
-          const calleeName = ts.isPropertyAccessExpression(expr) ? expr.name.text : ts.isIdentifier(expr) ? expr.text : null;
-          if (calleeName && (calleeName === 'describe' || calleeName === 'only' || calleeName === 'skip' || calleeName === 'fixme' || calleeName === 'serial' || calleeName === 'parallel')) {
+          const { base: baseName, parts } = getAccessChain(expr);
+          const chain = parts.join('.');
+          const last = parts.at(-1) ?? null;
+          const isDescribeLike = !!baseName && (baseName === 'test' || testBindings.has(baseName)) && ((parts.length === 2 && parts[1] === 'describe') || (parts.length >= 3 && parts[1] === 'describe' && parts[2] !== undefined && ['only', 'skip', 'fixme', 'serial', 'parallel'].includes(parts[2])) || (parts.length === 1 && parts[0] === 'describe'));
+          const isTestLike = !!baseName && (baseName === 'test' || testBindings.has(baseName)) && (chain === 'test' || (parts.length >= 2 && parts[0] === 'test' && ['only', 'skip', 'fixme', 'fail', 'slow'].includes(last ?? '')) || (parts.length >= 2 && baseName !== 'test' && testBindings.has(baseName) && ['only', 'skip', 'fixme', 'fail', 'slow'].includes(last ?? '')));
+
+          if (isDescribeLike) {
             const titleArg = node.arguments[0];
-            const title = titleArg && (ts.isStringLiteralLike(titleArg) || ts.isNoSubstitutionTemplateLiteral(titleArg)) ? titleArg.text : null;
+            const { title } = parseTitle(titleArg);
             const nextSuite = title ? [...suitePath, title] : suitePath;
-            const nextTags = [...tags];
-            if (node.arguments.length > 1 && node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1])) {
-              for (const prop of node.arguments[1].properties) {
-                if (ts.isPropertyAssignment(prop) && (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name))) {
-                  const key = ts.isIdentifier(prop.name) ? prop.name.text : prop.name.text;
-                  if (key === 'tag') {
-                    const value = prop.initializer;
-                    if (ts.isStringLiteral(value)) nextTags.push(value.text.startsWith('@') ? value.text : `@${value.text}`);
-                    else if (ts.isArrayLiteralExpression(value)) {
-                      for (const item of value.elements) {
-                        if (ts.isStringLiteral(item)) nextTags.push(item.text.startsWith('@') ? item.text : `@${item.text}`);
-                      }
-                    }
-                  }
-                }
-              }
+            const nextTags = uniqueSorted([...tags, ...collectTagsFromDetails(node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1]) ? node.arguments[1] : undefined)]);
+            const callback = [...node.arguments].reverse().find((arg): arg is ts.ArrowFunction | ts.FunctionExpression => ts.isArrowFunction(arg) || ts.isFunctionExpression(arg));
+            const nextInLoop = inLoop;
+
+            if (title) {
+              const extracted = collectTitleTags(title, title);
+              nextTags.push(...extracted);
             }
-            const callback = node.arguments[node.arguments.length - 1];
-            if (callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) {
-              visitTestCalls(callback.body, nextSuite, nextTags, inLoop);
+
+            const callbackBody = callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) ? callback.body : undefined;
+            if (callbackBody) {
+              visitTestCalls(callbackBody, nextSuite, uniqueSorted(nextTags), nextInLoop);
             }
+            return;
           }
-          if (calleeName && (calleeName === 'test' || calleeName === 'only' || calleeName === 'skip' || calleeName === 'fixme' || calleeName === 'fail' || calleeName === 'slow')) {
+
+          if (isTestLike) {
             const titleArg = node.arguments[0];
-            const title = titleArg && (ts.isStringLiteralLike(titleArg) || ts.isNoSubstitutionTemplateLiteral(titleArg)) ? titleArg.text : null;
+            const { title, titleSource } = parseTitle(titleArg);
+            const secondArg = node.arguments[1];
+            const detailsTags = collectTagsFromDetails(secondArg && ts.isObjectLiteralExpression(secondArg) ? secondArg : undefined);
+            const titleTags = titleArg ? collectTitleTags(title, titleArg.getText(sourceFile)) : [];
+            const mergedTags = uniqueSorted([...tags, ...detailsTags, ...titleTags]);
+
+            const callback = [...node.arguments].reverse().find((arg): arg is ts.ArrowFunction | ts.FunctionExpression => ts.isArrowFunction(arg) || ts.isFunctionExpression(arg));
             const fixtureNames: string[] = [];
-            const callback = node.arguments[node.arguments.length - 1];
             if (callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) {
               const param = callback.parameters[0];
               if (param && ts.isObjectBindingPattern(param.name)) {
@@ -495,38 +675,82 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
                 }
               }
             }
+
+            const testKind = chain === 'test' ? 'test' : chain.split('.').at(-1) ?? 'test';
+            const shouldRecord =
+              (testKind === 'test' || testKind === 'only' || testKind === 'skip' || testKind === 'fixme' || testKind === 'fail' || testKind === 'slow') &&
+              (!titleArg || ts.isStringLiteralLike(titleArg) || ts.isNoSubstitutionTemplateLiteral(titleArg) || ts.isTemplateExpression(titleArg));
+
+            if (!shouldRecord) {
+              return;
+            }
+
+            const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+            const baseId = `test:${toPosix(relPath)}::${suitePath.length > 0 ? `${suitePath.join(' > ')} > ` : ''}${title ?? `L${line + 1}`}`;
+            const seen = testTree.filter((entry) => entry.id === baseId || entry.id.startsWith(`${baseId}#`)).length;
+            const callbackGotos = callback ? collectGotoStrings(callback.body) : [];
+            const callbackFacts = callback ? collectTestReferences(callback.body) : {
+              names: [], namespaceMembers: [], newExpressions: [], instanceVariables: [], instanceMethodCalls: [],
+            };
             const testRecord: TestTreeRecord = {
-              id: `test:${toPosix(relPath)}::${title ?? `L${node.getStart() + 1}`}`,
+              id: seen === 0 ? baseId : `${baseId}#${seen + 1}`,
               file: toPosix(relPath),
-              line: node.getStart() + 1,
-              column: node.getStart(sourceFile) + 1,
-              endLine: node.getEnd() + 1,
+              line: line + 1,
+              column: character + 1,
+              endLine: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1,
               title,
               titleDynamic: !!titleArg && !ts.isStringLiteralLike(titleArg) && !ts.isNoSubstitutionTemplateLiteral(titleArg),
-              titleSource: titleArg ? truncateText(titleArg.getText(), 80) : null,
-              suitePath: suitePath,
+              titleSource: title ? null : titleSource,
+              suitePath,
               modifiers: [],
-              tags: tags,
-              fixtures: fixtureNames,
+              tags: uniqueSorted(mergedTags),
+              fixtures: [...new Set(fixtureNames)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
               calls: [],
-              navigatesTo: [],
+              navigatesTo: callbackGotos,
               inLoop,
+              referencedNames: callbackFacts.names,
+              namespaceMembers: callbackFacts.namespaceMembers,
+              newExpressions: callbackFacts.newExpressions,
+              instanceVariables: callbackFacts.instanceVariables,
+              instanceMethodCalls: callbackFacts.instanceMethodCalls,
+              gotos: callbackGotos,
             };
-            if (calleeName === 'skip') testRecord.modifiers.push('skip');
-            if (calleeName === 'fixme') testRecord.modifiers.push('fixme');
-            if (calleeName === 'only') testRecord.modifiers.push('only');
-            if (calleeName === 'fail') testRecord.modifiers.push('fail');
-            if (calleeName === 'slow') testRecord.modifiers.push('slow');
+
+            const modifiers = new Set<TestTreeRecord['modifiers'][number]>();
+            if (testKind === 'skip') modifiers.add('skip');
+            if (testKind === 'fixme') modifiers.add('fixme');
+            if (testKind === 'only') modifiers.add('only');
+            if (testKind === 'fail') modifiers.add('fail');
+            if (testKind === 'slow') modifiers.add('slow');
+            testRecord.modifiers = [...modifiers].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
             testTree.push(testRecord);
+            return;
           }
         }
+
+        if (ts.isForStatement(node) || ts.isForOfStatement(node) || ts.isForInStatement(node) || ts.isWhileStatement(node) || ts.isDoStatement(node)) {
+          ts.forEachChild(node, (child) => visitTestCalls(child, suitePath, tags, true));
+          return;
+        }
+
+        if (ts.isCallExpression(node)) {
+          const expr = node.expression;
+          if (ts.isPropertyAccessExpression(expr) && (expr.name.text === 'forEach' || expr.name.text === 'map' || expr.name.text === 'flatMap')) {
+            const callback = node.arguments.at(-1);
+            if (callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) {
+              visitTestCalls(callback.body, suitePath, tags, true);
+            }
+            return;
+          }
+        }
+
         ts.forEachChild(node, (child) => visitTestCalls(child, suitePath, tags, inLoop));
       }
       visitTestCalls(sourceFile, [], [], false);
     }
   }
 
-  collectReferences(sourceFile, references);
+  collectReferences(sourceFile, references, namespaceMembers);
 
   return {
     imports,
@@ -537,6 +761,7 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
     testObjectExports,
     testTree,
     references,
-    cjs: /module\.exports|require\s*\(/.test(text),
+    namespaceMembers,
+    cjs: /module\.exports|require\s*\(/.test(sourceFile.text),
   };
 }

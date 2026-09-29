@@ -1,5 +1,7 @@
 import path from 'node:path';
-import { extractFacts, type FileFacts } from './facts.js';
+import type { FileFacts } from './facts.js';
+import type { TsAliasConfig } from './config.js';
+import { resolveExportFromFacts, resolveSpecifier } from './resolve.js';
 import type { Diagnostic, FixtureEntry, HelperEntry, MethodEntry, SpecEntry, Stats, TagEntry, TestEntry } from './schema.js';
 
 export interface LinkedResult {
@@ -13,22 +15,30 @@ export interface LinkedResult {
   helperDirs: Array<{ dir: string; count: number }>;
 }
 
+export interface LinkOptions {
+  root: string;
+  aliasConfig: TsAliasConfig;
+  specFiles: Set<string>;
+}
+
 function makeId(file: string, name: string): string {
   return `helper:${file}#${name}`;
 }
 
-export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, diagnostics: Diagnostic[]): LinkedResult {
+export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, diagnostics: Diagnostic[], options: LinkOptions): LinkedResult {
   const helpers: HelperEntry[] = [];
   const fixtures: FixtureEntry[] = [];
   const tests: TestEntry[] = [];
   const specs: SpecEntry[] = [];
-  const helperDirs = new Map<string, number>();
+  const helperByDeclaration = new Map<string, HelperEntry>();
+  const resolveLocal = (fromFile: string, specifier: string) => resolveSpecifier(fromFile, specifier, options.aliasConfig, options.root);
 
   for (const file of files) {
     const facts = factsByFile.get(file);
     if (!facts) continue;
-
+    const exportedNames = new Set(facts.exports.filter((item) => item.from === null && item.localName !== null).map((item) => item.localName));
     for (const detail of facts.helperDetails) {
+      if (!exportedNames.has(detail.name)) continue;
       const methodRecords: MethodEntry[] = detail.methods.map((method) => ({
         ...method,
         id: `${makeId(detail.file, detail.name)}.${method.name}`,
@@ -55,10 +65,8 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
         referencedByTruncated: false,
       };
       helpers.push(entry);
-      const dir = path.posix.dirname(file);
-      helperDirs.set(dir, (helperDirs.get(dir) ?? 0) + 1);
+      helperByDeclaration.set(`${detail.file}#${detail.name}`, entry);
     }
-
     for (const fixture of facts.fixtureDefs) {
       fixtures.push({
         id: fixture.id,
@@ -72,8 +80,56 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
         testObject: fixture.testObject,
       });
     }
+  }
 
-    if (file.endsWith('.spec.ts') || file.endsWith('.spec.js') || file.endsWith('.test.ts') || file.endsWith('.test.js')) {
+  const importBindings = new Map<string, Map<string, HelperEntry>>();
+  const namespaceBindings = new Map<string, Map<string, Map<string, HelperEntry>>>();
+  const referenceFiles = new Map<string, Set<string>>();
+
+  for (const file of files) {
+    const facts = factsByFile.get(file);
+    if (!facts) continue;
+    const locals = new Map<string, HelperEntry>();
+    const namespaces = new Map<string, Map<string, HelperEntry>>();
+    for (const binding of facts.imports) {
+      if (binding.typeOnly) continue;
+      const target = resolveLocal(file, binding.specifier);
+      if (!target) continue;
+      if (binding.kind === 'namespace') {
+        const members = new Map<string, HelperEntry>();
+        const memberNames = new Set(facts.namespaceMembers.filter((item) => item.ns === binding.local).map((item) => item.member));
+        for (const member of memberNames) {
+          const resolved = resolveExportFromFacts(factsByFile, resolveLocal, target, member);
+          const helper = resolved ? helperByDeclaration.get(`${resolved.file}#${resolved.localName ?? 'default'}`) : undefined;
+          if (helper) members.set(member, helper);
+        }
+        namespaces.set(binding.local, members);
+        for (const helper of members.values()) {
+          if (!facts.references.has(binding.local) && !memberNames.size) continue;
+          const referrers = referenceFiles.get(helper.id) ?? new Set<string>();
+          if (file !== helper.file) referrers.add(file);
+          referenceFiles.set(helper.id, referrers);
+        }
+        continue;
+      }
+      const resolved = resolveExportFromFacts(factsByFile, resolveLocal, target, binding.imported ?? 'default');
+      const helper = resolved ? helperByDeclaration.get(`${resolved.file}#${resolved.localName ?? 'default'}`) : undefined;
+      if (!helper) continue;
+      locals.set(binding.local, helper);
+      if (facts.references.has(binding.local)) {
+        const referrers = referenceFiles.get(helper.id) ?? new Set<string>();
+        if (file !== helper.file) referrers.add(file);
+        referenceFiles.set(helper.id, referrers);
+      }
+    }
+    importBindings.set(file, locals);
+    namespaceBindings.set(file, namespaces);
+  }
+
+  for (const file of files) {
+    const facts = factsByFile.get(file);
+    if (!facts) continue;
+    if (options.specFiles.has(file)) {
       const count = facts.testTree.length;
       specs.push({
         id: `spec:${file}`,
@@ -81,43 +137,59 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
         testCount: count,
         tags: [...new Set(facts.testTree.flatMap((test) => test.tags))],
       });
-      tests.push(...facts.testTree.map((test) => ({
-        id: test.id,
-        file: test.file,
-        line: test.line,
-        column: test.column,
-        endLine: test.endLine,
-        title: test.title,
-        titleDynamic: test.titleDynamic,
-        titleSource: test.titleSource,
-        suitePath: test.suitePath,
-        modifiers: test.modifiers,
-        tags: test.tags,
-        fixtures: test.fixtures,
-        calls: test.calls,
-        navigatesTo: test.navigatesTo,
-        inLoop: test.inLoop,
-      }))); 
-    }
-  }
-
-  const helperCounts = new Map<string, number>();
-  for (const file of files) {
-    const facts = factsByFile.get(file);
-    if (!facts || !file.includes('.spec.') && !file.includes('.test.')) continue;
-    for (const test of facts.testTree) {
-      for (const call of test.calls) {
-        helperCounts.set(call, (helperCounts.get(call) ?? 0) + 1);
+      for (const test of facts.testTree) {
+        const calls = new Set<string>();
+        const localImports = importBindings.get(file) ?? new Map<string, HelperEntry>();
+        const namespaces = namespaceBindings.get(file) ?? new Map<string, Map<string, HelperEntry>>();
+        for (const name of test.referencedNames) {
+          const helper = localImports.get(name);
+          if (helper) calls.add(helper.id);
+        }
+        for (const access of test.namespaceMembers) {
+          const helper = namespaces.get(access.ns)?.get(access.member);
+          if (helper) calls.add(helper.id);
+        }
+        for (const className of test.newExpressions) {
+          const helper = localImports.get(className);
+          if (helper?.kind === 'class') calls.add(helper.id);
+        }
+        for (const instance of test.instanceVariables) {
+          const classEntry = localImports.get(instance.className);
+          if (classEntry?.kind === 'class') {
+            for (const call of test.instanceMethodCalls) {
+              if (call.variable !== instance.variable) continue;
+              const method = classEntry.methods.find((item) => item.name === call.method);
+              if (method) calls.add(method.id);
+            }
+          }
+        }
+        test.calls = [...calls].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+        tests.push({
+          id: test.id,
+          file: test.file,
+          line: test.line,
+          column: test.column,
+          endLine: test.endLine,
+          title: test.title,
+          titleDynamic: test.titleDynamic,
+          titleSource: test.titleSource,
+          suitePath: test.suitePath,
+          modifiers: test.modifiers,
+          tags: test.tags,
+          fixtures: test.fixtures,
+          calls: test.calls,
+          navigatesTo: test.navigatesTo,
+          inLoop: test.inLoop,
+        });
       }
     }
   }
 
-  const helperMap = new Map(helpers.map((helper) => [helper.id, helper]));
-  for (const [id, count] of helperCounts) {
-    const helper = helperMap.get(id);
-    if (helper) {
-      helper.usedBySpecCount = count;
-    }
+  for (const helper of helpers) {
+    const referrers = [...(referenceFiles.get(helper.id) ?? [])].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+    helper.usedBySpecCount = referrers.filter((file) => options.specFiles.has(file)).length;
+    helper.referencedByTruncated = referrers.length > 25;
+    helper.referencedByFiles = referrers.slice(0, 25);
   }
 
   const tagCounts = new Map<string, number>();
@@ -127,7 +199,7 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
     }
   }
 
-  const tags = [...tagCounts.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([tag, testCount]) => ({ tag, testCount }));
+  const tags = [...tagCounts.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([tag, testCount]) => ({ tag, testCount }));
 
   const stats: Stats = {
     specFiles: specs.length,
@@ -141,6 +213,18 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
     filesSkipped: 0,
   };
 
+  const directoryFiles = new Map<string, Set<string>>();
+  for (const helper of helpers) {
+    const dir = path.posix.dirname(helper.file);
+    const filesInDir = directoryFiles.get(dir) ?? new Set<string>();
+    filesInDir.add(helper.file);
+    directoryFiles.set(dir, filesInDir);
+  }
+  const helperDirs = [...directoryFiles.entries()].map(([dir, filesInDir]) => [dir, filesInDir.size] as const)
+    .sort(([dirA, countA], [dirB, countB]) => countB - countA || (dirA < dirB ? -1 : dirA > dirB ? 1 : 0))
+    .slice(0, 5)
+    .map(([dir, count]) => ({ dir, count }));
+
   return {
     specs,
     tests,
@@ -149,10 +233,6 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
     tags,
     diagnostics,
     stats,
-    helperDirs: [...helperDirs.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([dir, count]) => ({ dir, count })),
+    helperDirs,
   };
-}
-
-export function buildFactsForFile(relPath: string, text: string, isSpec: boolean): FileFacts {
-  return extractFacts(relPath, text, isSpec);
 }

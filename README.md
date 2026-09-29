@@ -8,6 +8,8 @@
 
 `playwright-scout` is a **static-analysis CLI + agent skill** for Playwright test projects. It scans your suite *without running it*, builds a searchable JSON index of all tests, page objects, helpers, fixtures, and tags — then lets a coding agent query that index before writing new code, so it **reuses what already exists instead of creating duplicates**.
 
+Requires Node.js 20 or newer. CI covers Node.js 20 and 22 on Linux and macOS; Windows-style path normalization is tested, but Windows runtime is not currently in the CI matrix.
+
 ---
 
 ## Why
@@ -58,37 +60,40 @@ npx playwright-scout install-skill
 ### `map` — build the index
 
 ```bash
-npx playwright-scout map [--root <dir>] [--out <file>] [--no-timestamp] [--if-stale] [--json] [--verbose] [--quiet]
+npx playwright-scout map [--root <dir>] [--out <file>] [--include <glob...>] [--no-timestamp] [--if-stale] [--json] [--verbose] [--quiet]
 ```
 
 Scans `--root` (default: `cwd`), reads `playwright.config.*` statically, discovers spec and support files, and writes `.scout/index.json`.
 
 ```
-scout: indexed 4 spec files, 7 tests, 7 helpers (2 page objects), 3 fixtures in 0.3s
+scout: indexed 4 spec files, 7 tests, 7 helpers (2 page objects), 3 fixtures in 0.0s
 index: .scout/index.json (schema v1)
 helper dirs: pages (2), utils (2), tests/support (1)
+warnings: 1 (use --verbose to list)
 ```
 
 **Flags**
+- `--include <glob...>` — add support files matched relative to the project root
 - `--if-stale` — skip rebuild if index is newer than all source files
 - `--no-timestamp` — omit `generatedAt`; output is byte-identical for the same input (good for CI diffing)
 - `--verbose` — print every diagnostic to stderr
 - `--json` — print summary as JSON
+- `--quiet` — suppress the successful summary
 
 ---
 
 ### `find` — search the index
 
 ```bash
-npx playwright-scout find <query...> [--kind helper|method|test|fixture|any] [--limit <n>] [--json]
+npx playwright-scout find <query...> [--kind helper|method|test|fixture|any] [--limit <n>] [--root <dir>] [--json]
 ```
 
 Tokenises the query, scores every entry by name / doc / file / tags / navigatesTo, and returns the top matches.
 
 ```
-method   LoginPage.login(user: string, pass: string)  pages/login.page.ts:12  used in 1 specs  — Logs in through the UI form.
-method   LoginPage.errorText()                         pages/login.page.ts:15  used in 1 specs
-class    LoginPage                                     pages/login.page.ts:5   used in 1 specs  — Login screen of the app.
+class    LoginPage  pages/login.page.ts:3 — Login screen of the app.
+method   LoginPage.login(user: string, pass: string)  pages/login.page.ts:9 — Logs in through the UI form.
+test     Login > logs in with valid credentials @smoke  tests/login.spec.ts:6  tags: @auth,@smoke — logs in with valid credentials @smoke
 ```
 
 ---
@@ -96,10 +101,17 @@ class    LoginPage                                     pages/login.page.ts:5   u
 ### `show` — inspect an entry
 
 ```bash
-npx playwright-scout show <id-or-label> [--json]
+npx playwright-scout show <id-or-label> [--root <dir>] [--json]
 ```
 
-Accepts a full id (`helper:pages/login.page.ts#LoginPage`), a unique suffix after `#` (`LoginPage`), or a method label (`LoginPage.login`).
+Accepts a full id (`helper:pages/login.page.ts#LoginPage`), a unique suffix after `#` (`LoginPage`), or a method label (`LoginPage.login`). Short identifier-token matches can be ambiguous; list candidates with a more specific label.
+
+```text
+LoginPage.login(user: string, pass: string)
+Logs in through the UI form.
+class: helper:pages/login.page.ts#LoginPage
+pages/login.page.ts:3
+```
 
 ---
 
@@ -136,14 +148,22 @@ The result is `.scout/index.json` (schema v1, Zod-validated). It contains:
 - `tags` — `@tag` counts across all tests
 - `diagnostics` — parse errors, dynamic config values, unresolved imports
 
+Unlike grep, the index follows local ESM imports and re-exports, distinguishes tests from helpers and fixtures, and ranks matches across names, documentation, tags, and source paths. Grep remains useful for unsupported syntax and CommonJS code.
+
+See the [schema reference](docs/SCHEMA.md) for indexed fields and [CLI reference](docs/CLI.md) for command options and exit codes.
+
 ---
 
 ## What it does NOT do
 
 - Run tests or evaluate code at runtime
 - Make LLM or network calls
-- Support CommonJS (`require`/`module.exports`) — emits a diagnostic instead
-- Watch for changes or cache across runs (use `--if-stale` to skip unnecessary rebuilds)
+- Index CommonJS files (`require`/`module.exports`)
+- Link fixture parameters to the classes they construct; calls made through fixtures are not recorded in `calls` (fixture names are recorded in `fixtures`)
+- Capture dynamic `.goto()` values; only string and no-substitution-template arguments are included
+- Fully resolve dynamic test titles; they are approximated
+- Analyze multiple Playwright configs in one run; map one root at a time
+- Follow CommonJS module relationships; only ESM-style imports and exports are followed
 - Support Python, Java, or .NET test suites
 
 ---
@@ -170,6 +190,8 @@ Once installed, your AI assistant will automatically:
 2. Search 2–3 times with different words before writing any helper
 3. Reuse what exists, or explain why it didn't in one sentence
 
+The installer paths are tool-specific and may change; verify the target directory your agent currently uses.
+
 See [`skills/playwright-scout/SKILL.md`](skills/playwright-scout/SKILL.md) for the full skill spec.
 
 ---
@@ -184,7 +206,8 @@ npm run build    # compile TypeScript
 
 # Try against the built-in sample suite
 node packages/cli/dist/bin.js map --root fixtures/sample-suite
-node packages/cli/dist/bin.js find login
+node packages/cli/dist/bin.js find login --root fixtures/sample-suite
+node packages/cli/dist/bin.js show LoginPage.login --root fixtures/sample-suite
 ```
 
 See [`docs/SPEC.md`](docs/SPEC.md) for the full build specification and [`docs/PROGRESS.md`](docs/PROGRESS.md) for task status.
