@@ -30,8 +30,8 @@
 - [x] T10 Skill & installer
   - Implemented the bundled skill installer and wired the CLI install-skill command to copy the correct SKILL.md into agent target directories.
 - [x] T11 Docs — README examples, known limitations, and installer path guidance synchronized with verified CLI behavior.
-- [ ] T12 Dry run on real code
-- [ ] T13 Release prep
+- [x] T12 Dry run on real code — Mapped public Microsoft and Checkly Playwright examples without crashes; timings and counts are in `docs/DECISIONS.md`.
+- [x] T13 Release prep — Both 0.1.0 tarballs pass dry-run contents review and installed-package smoke tests; publish is intentionally left to the human maintainer.
 
 ## Fix phase
 - Baseline recorded for F0: golden suite currently failing with 21/25 tests failing (4 passing), after the sample-suite regression test was added and before any fix work begins.
@@ -43,3 +43,4 @@
 - [x] F6 — Wired the compiled CLI options, output formatting, injected writers, and documented exit codes; verified built map/find/show/missing-index commands and `npm run check` passes with 60 tests.
 - [x] F7 — Added parse, build, and link tests plus empty/comment, oversized, CRLF, non-UTF8, Windows-path, and 1,000-spec robustness coverage; `npm run check` passes with 70 tests.
 - [x] F8 — Updated README and skill commands from fresh sample-suite runs, added known limitations and installer-path verification guidance, and recorded helper-directory counting; `npm run check` passes with 70 tests.
+- [x] F9 — Completed public-project dry runs, package metadata and contents review, and fresh-project installation/execution of both tarballs; publishing remains a human-only step.

@@ -8,6 +8,8 @@
 
 `playwright-scout` is a **static-analysis CLI + agent skill** for Playwright test projects. It scans your suite *without running it*, builds a searchable JSON index of all tests, page objects, helpers, fixtures, and tags — then lets a coding agent query that index before writing new code, so it **reuses what already exists instead of creating duplicates**.
 
+Requires Node.js 20 or newer. CI covers Node.js 20 and 22 on Linux and macOS; Windows-style path normalization is tested, but Windows runtime is not currently in the CI matrix.
+
 ---
 
 ## Why
@@ -145,6 +147,10 @@ The result is `.scout/index.json` (schema v1, Zod-validated). It contains:
 - `fixtures` — every `.extend({…})` fixture with scope, auto, dependsOn
 - `tags` — `@tag` counts across all tests
 - `diagnostics` — parse errors, dynamic config values, unresolved imports
+
+Unlike grep, the index follows local ESM imports and re-exports, distinguishes tests from helpers and fixtures, and ranks matches across names, documentation, tags, and source paths. Grep remains useful for unsupported syntax and CommonJS code.
+
+See the [schema reference](docs/SCHEMA.md) for indexed fields and [CLI reference](docs/CLI.md) for command options and exit codes.
 
 ---
 
