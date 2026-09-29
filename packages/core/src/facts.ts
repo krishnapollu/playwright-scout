@@ -153,7 +153,11 @@ function getValuePreview(expr: ts.Expression | undefined): string | null {
   return text.length > 0 ? truncateText(text, 80) : null;
 }
 
-function collectClassMethods(node: ts.ClassDeclaration, fileName: string, ownerName: string): MethodEntry[] {
+function lineNumber(sourceFile: ts.SourceFile, position: number): number {
+  return sourceFile.getLineAndCharacterOfPosition(position).line + 1;
+}
+
+function collectClassMethods(node: ts.ClassDeclaration, fileName: string, ownerName: string, sourceFile: ts.SourceFile): MethodEntry[] {
   const methods: MethodEntry[] = [];
   for (const member of node.members) {
     if (ts.isMethodDeclaration(member) || ts.isGetAccessorDeclaration(member) || ts.isSetAccessorDeclaration(member)) {
@@ -173,7 +177,7 @@ function collectClassMethods(node: ts.ClassDeclaration, fileName: string, ownerN
         isStatic: modifiers.some((m: ts.Modifier) => m.kind === ts.SyntaxKind.StaticKeyword),
         visibility,
         doc: getJsDoc(member),
-        line: member.getStart() + 1,
+        line: lineNumber(sourceFile, member.getStart(sourceFile)),
       });
     }
   }
@@ -346,36 +350,36 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
       const clause = stmt.importClause;
       if (clause) {
         if (clause.name) {
-          imports.push({ specifier, kind: 'default', imported: 'default', local: clause.name.text, typeOnly: clause.isTypeOnly, line: stmt.getStart() + 1 });
+          imports.push({ specifier, kind: 'default', imported: 'default', local: clause.name.text, typeOnly: clause.isTypeOnly, line: lineNumber(sourceFile, stmt.getStart(sourceFile)) });
           declaredNames.add(clause.name.text);
         }
         if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
           for (const element of clause.namedBindings.elements) {
-            imports.push({ specifier, kind: 'named', imported: element.propertyName?.text ?? element.name.text, local: element.name.text, typeOnly: element.isTypeOnly, line: stmt.getStart() + 1 });
+            imports.push({ specifier, kind: 'named', imported: element.propertyName?.text ?? element.name.text, local: element.name.text, typeOnly: element.isTypeOnly, line: lineNumber(sourceFile, stmt.getStart(sourceFile)) });
             declaredNames.add(element.name.text);
           }
         }
         if (clause.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
-          imports.push({ specifier, kind: 'namespace', imported: null, local: clause.namedBindings.name.text, typeOnly: clause.isTypeOnly, line: stmt.getStart() + 1 });
+          imports.push({ specifier, kind: 'namespace', imported: null, local: clause.namedBindings.name.text, typeOnly: clause.isTypeOnly, line: lineNumber(sourceFile, stmt.getStart(sourceFile)) });
           declaredNames.add(clause.namedBindings.name.text);
         }
       }
     }
 
     if (ts.isFunctionDeclaration(stmt) && stmt.name) {
-      localDecls[stmt.name.text] = { kind: 'function', name: stmt.name.text, line: stmt.getStart() + 1 };
+      localDecls[stmt.name.text] = { kind: 'function', name: stmt.name.text, line: lineNumber(sourceFile, stmt.getStart(sourceFile)) };
       declaredNames.add(stmt.name.text);
     }
 
     if (ts.isClassDeclaration(stmt) && stmt.name) {
-      localDecls[stmt.name.text] = { kind: 'class', name: stmt.name.text, line: stmt.getStart() + 1 };
+      localDecls[stmt.name.text] = { kind: 'class', name: stmt.name.text, line: lineNumber(sourceFile, stmt.getStart(sourceFile)) };
       declaredNames.add(stmt.name.text);
     }
 
     if (ts.isVariableStatement(stmt)) {
       for (const decl of stmt.declarationList.declarations) {
         if (ts.isIdentifier(decl.name)) {
-          localDecls[decl.name.text] = { kind: 'constant', name: decl.name.text, line: stmt.getStart() + 1 };
+          localDecls[decl.name.text] = { kind: 'constant', name: decl.name.text, line: lineNumber(sourceFile, stmt.getStart(sourceFile)) };
           declaredNames.add(decl.name.text);
         }
       }
@@ -429,7 +433,7 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
                 id: `fixture:${toPosix(relPath)}#${key}`,
                 name: key,
                 file: toPosix(relPath),
-                line: prop.getStart() + 1,
+                line: lineNumber(sourceFile, prop.getStart(sourceFile)),
                 scope: cfg.scope,
                 auto: cfg.auto,
                 option: cfg.option,
@@ -453,8 +457,8 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
         exportName,
         kind,
         file: toPosix(relPath),
-        line: stmt.getStart() + 1,
-        endLine: stmt.getEnd() + 1,
+        line: lineNumber(sourceFile, stmt.getStart(sourceFile)),
+        endLine: lineNumber(sourceFile, stmt.getEnd()),
         isAsync: !!stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword),
         params: getFunctionParams(stmt),
         returns: getReturnType(stmt),
@@ -481,8 +485,8 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
         exportName: getDefaultExportName(stmt),
         kind: 'class',
         file: toPosix(relPath),
-        line: stmt.getStart() + 1,
-        endLine: stmt.getEnd() + 1,
+        line: lineNumber(sourceFile, stmt.getStart(sourceFile)),
+        endLine: lineNumber(sourceFile, stmt.getEnd()),
         isAsync: false,
         params: null,
         returns: null,
@@ -490,7 +494,7 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
         extends: stmt.heritageClauses?.[0]?.types[0]?.expression.getText() ?? null,
         category,
         doc: getJsDoc(stmt),
-        methods: collectClassMethods(stmt, toPosix(relPath), stmt.name.text),
+        methods: collectClassMethods(stmt, toPosix(relPath), stmt.name.text, sourceFile),
         navigatesTo: collectGotoStrings(stmt),
       };
       helperDetails.push(detail);
@@ -509,8 +513,8 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
             exportName: isDefault ? 'default' : name,
             kind: isFunctionLike ? 'function' : 'constant',
             file: toPosix(relPath),
-            line: stmt.getStart() + 1,
-            endLine: stmt.getEnd() + 1,
+            line: lineNumber(sourceFile, stmt.getStart(sourceFile)),
+            endLine: lineNumber(sourceFile, stmt.getEnd()),
             isAsync: !!(decl.initializer && (ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer)) && decl.initializer.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword)),
             params: isFunctionLike ? getFunctionParams(decl.initializer) : null,
             returns: isFunctionLike ? getReturnType(decl.initializer) : null,

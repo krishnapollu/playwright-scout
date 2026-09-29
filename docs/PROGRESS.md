@@ -40,3 +40,4 @@
 - [x] F3 — Build the reachable module graph, resolve imports/exports from cached facts, and link helpers to files and individual tests; facts/resolver regressions and the golden acceptance slice pass.
 - [x] F4 — Verified fixture extraction and test-object exclusion against the golden suite; all three targeted assertions pass.
 - [x] F5 — Implemented weighted search fields, deterministic ordering, strict show resolution, and ambiguity reporting; `npm run check` passes with 57 tests.
+- [x] F6 — Wired the compiled CLI options, output formatting, injected writers, and documented exit codes; verified built map/find/show/missing-index commands and `npm run check` passes with 60 tests.

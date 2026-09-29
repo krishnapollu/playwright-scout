@@ -214,12 +214,14 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
     filesSkipped: 0,
   };
 
-  const directoryCounts = new Map<string, number>();
+  const directoryFiles = new Map<string, Set<string>>();
   for (const helper of helpers) {
     const dir = path.posix.dirname(helper.file);
-    directoryCounts.set(dir, (directoryCounts.get(dir) ?? 0) + 1);
+    const filesInDir = directoryFiles.get(dir) ?? new Set<string>();
+    filesInDir.add(helper.file);
+    directoryFiles.set(dir, filesInDir);
   }
-  const helperDirs = [...directoryCounts.entries()]
+  const helperDirs = [...directoryFiles.entries()].map(([dir, filesInDir]) => [dir, filesInDir.size] as const)
     .sort(([dirA, countA], [dirB, countB]) => countB - countA || (dirA < dirB ? -1 : dirA > dirB ? 1 : 0))
     .slice(0, 5)
     .map(([dir, count]) => ({ dir, count }));
