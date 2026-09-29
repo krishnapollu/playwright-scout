@@ -72,6 +72,9 @@ export interface TestTreeRecord {
   calls: string[];
   navigatesTo: string[];
   inLoop: boolean;
+  referencedNames?: string[];
+  namespaceMembers?: Array<{ ns: string; member: string }>;
+  gotos?: string[];
 }
 
 export interface FileFacts {
@@ -451,41 +454,119 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
       }
     }
     if (testBindings.size > 0 || sourceFile.text.includes('test.')) {
+      function getAccessChain(expression: ts.Expression): { base: string | null; parts: string[] } {
+        const parts: string[] = [];
+        let current: ts.Expression = expression;
+
+        while (ts.isPropertyAccessExpression(current)) {
+          parts.unshift(current.name.text);
+          current = current.expression;
+        }
+        if (ts.isIdentifier(current)) {
+          parts.unshift(current.text);
+          return { base: current.text, parts };
+        }
+        return { base: null, parts };
+      }
+
+      function parseTitle(text: ts.Expression | undefined): { title: string | null; titleDynamic: boolean; titleSource: string | null } {
+        if (!text) {
+          return { title: null, titleDynamic: true, titleSource: null };
+        }
+        if (ts.isStringLiteralLike(text) || ts.isNoSubstitutionTemplateLiteral(text)) {
+          return { title: text.text, titleDynamic: false, titleSource: null };
+        }
+        if (ts.isTemplateExpression(text)) {
+          let title = text.head.text;
+          for (const span of text.templateSpans) {
+            title += '{…}' + span.literal.text;
+          }
+          return { title, titleDynamic: true, titleSource: null };
+        }
+        return { title: null, titleDynamic: true, titleSource: truncateText(text.getText(sourceFile), 80) };
+      }
+
+      function tagValueToStrings(value: ts.Expression): string[] {
+        if (ts.isStringLiteral(value)) {
+          return [value.text.startsWith('@') ? value.text : `@${value.text}`];
+        }
+        if (ts.isArrayLiteralExpression(value)) {
+          const values: string[] = [];
+          for (const item of value.elements) {
+            if (ts.isStringLiteral(item)) {
+              const text = item.text.startsWith('@') ? item.text : `@${item.text}`;
+              values.push(text);
+            }
+          }
+          return values;
+        }
+        return [];
+      }
+
+      function collectTagsFromDetails(details: ts.Expression | undefined): string[] {
+        if (!details || !ts.isObjectLiteralExpression(details)) return [];
+        const nextTags: string[] = [];
+        for (const prop of details.properties) {
+          if (!ts.isPropertyAssignment(prop)) continue;
+          const key = ts.isIdentifier(prop.name) ? prop.name.text : ts.isStringLiteral(prop.name) ? prop.name.text : null;
+          if (key !== 'tag') continue;
+          nextTags.push(...tagValueToStrings(prop.initializer));
+        }
+        return nextTags;
+      }
+
+      function collectTitleTags(title: string | null, titleText: string | undefined): string[] {
+        if (!titleText) return [];
+        const tags = [...titleText.matchAll(/(?:^|\s)(@[-\w:]+)/g)].map((match) => match[1]);
+        if (title && title.startsWith('@')) {
+          tags.push(title);
+        }
+        return tags.filter((tag) => tag.startsWith('@'));
+      }
+
+      function uniqueSorted(values: Iterable<string>): string[] {
+        return [...new Set(values)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      }
+
       function visitTestCalls(node: ts.Node, suitePath: string[], tags: string[], inLoop: boolean): void {
         if (ts.isCallExpression(node)) {
           const expr = node.expression;
-          const calleeName = ts.isPropertyAccessExpression(expr) ? expr.name.text : ts.isIdentifier(expr) ? expr.text : null;
-          if (calleeName && (calleeName === 'describe' || calleeName === 'only' || calleeName === 'skip' || calleeName === 'fixme' || calleeName === 'serial' || calleeName === 'parallel')) {
+          const { base: baseName, parts } = getAccessChain(expr);
+          const chain = parts.join('.');
+          const last = parts.at(-1) ?? null;
+          const isDescribeLike = !!baseName && (baseName === 'test' || testBindings.has(baseName)) && ((parts.length === 2 && parts[1] === 'describe') || (parts.length >= 3 && parts[1] === 'describe' && ['only', 'skip', 'fixme', 'serial', 'parallel'].includes(parts[2])) || (parts.length === 1 && parts[0] === 'describe'));
+          const isTestLike = !!baseName && (baseName === 'test' || testBindings.has(baseName)) && (chain === 'test' || (parts.length >= 2 && parts[0] === 'test' && ['only', 'skip', 'fixme', 'fail', 'slow'].includes(last ?? '')) || (parts.length >= 2 && baseName !== 'test' && testBindings.has(baseName) && ['only', 'skip', 'fixme', 'fail', 'slow'].includes(last ?? '')));
+
+          if (isDescribeLike) {
             const titleArg = node.arguments[0];
-            const title = titleArg && (ts.isStringLiteralLike(titleArg) || ts.isNoSubstitutionTemplateLiteral(titleArg)) ? titleArg.text : null;
+            const { title, titleDynamic, titleSource } = parseTitle(titleArg);
             const nextSuite = title ? [...suitePath, title] : suitePath;
-            const nextTags = [...tags];
-            if (node.arguments.length > 1 && node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1])) {
-              for (const prop of node.arguments[1].properties) {
-                if (ts.isPropertyAssignment(prop) && (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name))) {
-                  const key = ts.isIdentifier(prop.name) ? prop.name.text : prop.name.text;
-                  if (key === 'tag') {
-                    const value = prop.initializer;
-                    if (ts.isStringLiteral(value)) nextTags.push(value.text.startsWith('@') ? value.text : `@${value.text}`);
-                    else if (ts.isArrayLiteralExpression(value)) {
-                      for (const item of value.elements) {
-                        if (ts.isStringLiteral(item)) nextTags.push(item.text.startsWith('@') ? item.text : `@${item.text}`);
-                      }
-                    }
-                  }
-                }
-              }
+            const nextTags = uniqueSorted([...tags, ...collectTagsFromDetails(node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1]) ? node.arguments[1] : undefined)]);
+            const callback = [...node.arguments].reverse().find((arg): arg is ts.ArrowFunction | ts.FunctionExpression => ts.isArrowFunction(arg) || ts.isFunctionExpression(arg));
+            const nextInLoop = inLoop || (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) && false;
+
+            if (title) {
+              const extracted = collectTitleTags(title, title);
+              nextTags.push(...extracted);
             }
-            const callback = node.arguments[node.arguments.length - 1];
-            if (callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) {
-              visitTestCalls(callback.body, nextSuite, nextTags, inLoop);
+
+            const callbackBody = callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) ? callback.body : undefined;
+            if (callbackBody) {
+              visitTestCalls(callbackBody, nextSuite, uniqueSorted(nextTags), nextInLoop);
             }
+            return;
           }
-          if (calleeName && (calleeName === 'test' || calleeName === 'only' || calleeName === 'skip' || calleeName === 'fixme' || calleeName === 'fail' || calleeName === 'slow')) {
+
+          if (isTestLike) {
             const titleArg = node.arguments[0];
-            const title = titleArg && (ts.isStringLiteralLike(titleArg) || ts.isNoSubstitutionTemplateLiteral(titleArg)) ? titleArg.text : null;
+            const { title, titleDynamic, titleSource } = parseTitle(titleArg);
+            const secondArg = node.arguments[1];
+            const detailsTags = collectTagsFromDetails(secondArg && ts.isObjectLiteralExpression(secondArg) ? secondArg : undefined);
+            const titleTags = titleArg ? collectTitleTags(title, titleArg.getText(sourceFile)) : [];
+            const mergedTags = uniqueSorted([...tags, ...detailsTags, ...titleTags]);
+
+            const callback = [...node.arguments].reverse().find((arg): arg is ts.ArrowFunction | ts.FunctionExpression => ts.isArrowFunction(arg) || ts.isFunctionExpression(arg));
             const fixtureNames: string[] = [];
-            const callback = node.arguments[node.arguments.length - 1];
             if (callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) {
               const param = callback.parameters[0];
               if (param && ts.isObjectBindingPattern(param.name)) {
@@ -495,31 +576,67 @@ export function extractFacts(relPath: string, text: string, isSpec: boolean): Fi
                 }
               }
             }
+
+            const testKind = chain === 'test' ? 'test' : chain.split('.').at(-1) ?? 'test';
+            const shouldRecord =
+              (testKind === 'test' || testKind === 'only' || testKind === 'skip' || testKind === 'fixme' || testKind === 'fail' || testKind === 'slow') &&
+              (!titleArg || ts.isStringLiteralLike(titleArg) || ts.isNoSubstitutionTemplateLiteral(titleArg) || ts.isTemplateExpression(titleArg));
+
+            if (!shouldRecord) {
+              return;
+            }
+
+            const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+            const baseId = `test:${toPosix(relPath)}::${suitePath.length > 0 ? `${suitePath.join(' > ')} > ` : ''}${title ?? `L${line + 1}`}`;
+            const seen = testTree.filter((entry) => entry.id === baseId || entry.id.startsWith(`${baseId}#`)).length;
+            const callbackGotos = callback ? collectGotoStrings(callback.body) : [];
             const testRecord: TestTreeRecord = {
-              id: `test:${toPosix(relPath)}::${title ?? `L${node.getStart() + 1}`}`,
+              id: seen === 0 ? baseId : `${baseId}#${seen + 1}`,
               file: toPosix(relPath),
-              line: node.getStart() + 1,
-              column: node.getStart(sourceFile) + 1,
-              endLine: node.getEnd() + 1,
+              line: line + 1,
+              column: character + 1,
+              endLine: sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1,
               title,
               titleDynamic: !!titleArg && !ts.isStringLiteralLike(titleArg) && !ts.isNoSubstitutionTemplateLiteral(titleArg),
-              titleSource: titleArg ? truncateText(titleArg.getText(), 80) : null,
-              suitePath: suitePath,
+              titleSource: title ? null : titleSource,
+              suitePath,
               modifiers: [],
-              tags: tags,
-              fixtures: fixtureNames,
+              tags: uniqueSorted(mergedTags),
+              fixtures: [...new Set(fixtureNames)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
               calls: [],
-              navigatesTo: [],
+              navigatesTo: callbackGotos,
               inLoop,
+              gotos: callbackGotos,
             };
-            if (calleeName === 'skip') testRecord.modifiers.push('skip');
-            if (calleeName === 'fixme') testRecord.modifiers.push('fixme');
-            if (calleeName === 'only') testRecord.modifiers.push('only');
-            if (calleeName === 'fail') testRecord.modifiers.push('fail');
-            if (calleeName === 'slow') testRecord.modifiers.push('slow');
+
+            const modifiers = new Set<string>();
+            if (testKind === 'skip') modifiers.add('skip');
+            if (testKind === 'fixme') modifiers.add('fixme');
+            if (testKind === 'only') modifiers.add('only');
+            if (testKind === 'fail') modifiers.add('fail');
+            if (testKind === 'slow') modifiers.add('slow');
+            testRecord.modifiers = [...modifiers].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
             testTree.push(testRecord);
+            return;
           }
         }
+
+        if (ts.isForStatement(node) || ts.isForOfStatement(node) || ts.isForInStatement(node) || ts.isWhileStatement(node) || ts.isDoStatement(node)) {
+          ts.forEachChild(node, (child) => visitTestCalls(child, suitePath, tags, true));
+          return;
+        }
+
+        if (ts.isCallExpression(node)) {
+          const expr = node.expression;
+          if (ts.isPropertyAccessExpression(expr) && (expr.name.text === 'forEach' || expr.name.text === 'map' || expr.name.text === 'flatMap')) {
+            const callback = node.arguments.at(-1);
+            if (callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) {
+              visitTestCalls(callback.body, suitePath, tags, true);
+            }
+            return;
+          }
+        }
+
         ts.forEachChild(node, (child) => visitTestCalls(child, suitePath, tags, inLoop));
       }
       visitTestCalls(sourceFile, [], [], false);
