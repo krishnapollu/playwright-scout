@@ -32,3 +32,6 @@
 - [ ] T11 Docs
 - [ ] T12 Dry run on real code
 - [ ] T13 Release prep
+
+## Fix phase
+- Baseline recorded for F0: golden suite currently failing with 21/25 tests failing (4 passing), after the sample-suite regression test was added and before any fix work begins.
