@@ -634,7 +634,7 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
 
           if (isDescribeLike) {
             const titleArg = node.arguments[0];
-            const { title, titleDynamic, titleSource } = parseTitle(titleArg);
+            const { title } = parseTitle(titleArg);
             const nextSuite = title ? [...suitePath, title] : suitePath;
             const nextTags = uniqueSorted([...tags, ...collectTagsFromDetails(node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1]) ? node.arguments[1] : undefined)]);
             const callback = [...node.arguments].reverse().find((arg): arg is ts.ArrowFunction | ts.FunctionExpression => ts.isArrowFunction(arg) || ts.isFunctionExpression(arg));
@@ -654,7 +654,7 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
 
           if (isTestLike) {
             const titleArg = node.arguments[0];
-            const { title, titleDynamic, titleSource } = parseTitle(titleArg);
+            const { title, titleSource } = parseTitle(titleArg);
             const secondArg = node.arguments[1];
             const detailsTags = collectTagsFromDetails(secondArg && ts.isObjectLiteralExpression(secondArg) ? secondArg : undefined);
             const titleTags = titleArg ? collectTitleTags(title, titleArg.getText(sourceFile)) : [];
