@@ -37,3 +37,5 @@
 - Baseline recorded for F0: golden suite currently failing with 21/25 tests failing (4 passing), after the sample-suite regression test was added and before any fix work begins.
 - [x] F1 — Fix the test-tree extraction (`facts.ts`): corrected Playwright `describe`/`test` detection, 1-based coordinates, inherited tags and modifiers, dynamic title rendering, loop detection, and `.goto()` capture; verified with the F1 golden subset.
 - [x] F2 — Clean up `build.ts`: parse each file once, use discovered specs and source language, report skipped files and dynamic titles, and sort diagnostics deterministically; `npx tsc -b` and the F2 golden subset pass.
+- [x] F3 — Build the reachable module graph, resolve imports/exports from cached facts, and link helpers to files and individual tests; facts/resolver regressions and the golden acceptance slice pass. The full golden suite now has only the two F5 search failures.
+- [x] F4 — Verified fixture extraction and test-object exclusion against the golden suite; all three targeted assertions pass.
