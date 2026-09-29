@@ -21,6 +21,7 @@ Any time you are about to create or modify: a Playwright test, a page object, a 
    - A helper/page object/fixture already does it → **reuse it**. Import it; do not re-implement.
    - Nothing fits → create a new one in the directory shown on the `helper dirs:` line printed by `map`, following the naming and style of the neighbouring files.
 5. After adding or changing exported helpers, re-run `npx playwright-scout map`.
+6. Confirm your agent tool currently uses the directory where `install-skill` placed this file; agent skill paths can change.
 
 ## Rules
 - Never read or edit `.scout/index.json` directly; it is large. Use `find` and `show`.

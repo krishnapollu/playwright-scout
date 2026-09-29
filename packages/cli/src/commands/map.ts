@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { buildIndex, discoverFiles, readConfig, writeIndex, IndexSchema } from 'playwright-scout-core';
+import { buildIndex, writeIndex, IndexSchema } from 'playwright-scout-core';
 
 export interface MapCommandOptions {
   json?: boolean;
@@ -17,6 +17,12 @@ export interface CommandResult {
   stderr: string;
   exitCode: number;
 }
+
+const ignoredDirectories = new Set([
+  'node_modules', 'dist', 'build', 'out', '.git', '.scout', 'playwright-report',
+  'test-results', 'blob-report', 'coverage', '.next', '.turbo', '.cache',
+]);
+const sourceExtension = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 
 function posix(value: string): string {
   return value.split(path.sep).join('/');
@@ -35,7 +41,19 @@ async function writeCustomIndex(filePath: string, root: string, index: unknown):
   }
 }
 
-async function isUpToDate(root: string, indexPath: string, include: string[]): Promise<boolean> {
+async function collectSourceFiles(root: string, currentDir = root, files: string[] = []): Promise<string[]> {
+  const entries = await fs.readdir(currentDir, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      if (!ignoredDirectories.has(entry.name)) await collectSourceFiles(root, path.join(currentDir, entry.name), files);
+    } else if (entry.isFile() && sourceExtension.test(entry.name) && !entry.name.endsWith('.d.ts')) {
+      files.push(path.join(currentDir, entry.name));
+    }
+  }
+  return files;
+}
+
+async function isUpToDate(root: string, indexPath: string): Promise<boolean> {
   let indexMtime: number;
   try {
     const text = await fs.readFile(indexPath, 'utf8');
@@ -45,12 +63,9 @@ async function isUpToDate(root: string, indexPath: string, include: string[]): P
   } catch {
     return false;
   }
-  const config = readConfig(root);
-  const discovery = await discoverFiles(root, config.testDir, config.testMatch, include);
-  const sources = [...discovery.specFiles, ...discovery.supportFiles];
-  if (config.configFile) sources.push(config.configFile);
+  const sources = await collectSourceFiles(root);
   for (const source of sources) {
-    const stat = await fs.stat(path.join(root, source)).catch(() => null);
+    const stat = await fs.stat(source).catch(() => null);
     if (stat && stat.mtimeMs >= indexMtime) return false;
   }
   return true;
@@ -62,7 +77,7 @@ export async function mapCommand(root: string, options: MapCommandOptions = {}):
   const indexPath = path.resolve(absoluteRoot, options.out ?? '.scout/index.json');
   const relativeIndexPath = posix(path.relative(absoluteRoot, indexPath));
 
-  if (options.ifStale && await isUpToDate(absoluteRoot, indexPath, options.include ?? [])) {
+  if (options.ifStale && await isUpToDate(absoluteRoot, indexPath)) {
     return { stdout: options.quiet ? '' : 'scout: index is up to date', stderr: '', exitCode: 0 };
   }
 

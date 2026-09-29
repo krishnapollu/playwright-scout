@@ -51,6 +51,13 @@ describe('CLI commands', () => {
     expect(await main(['node', 'scout', 'map', '--root', root, '--if-stale'], second.writers)).toBe(0);
     expect(second.output.stdout).toContain('scout: index is up to date');
 
+    const barrel = path.join(root, 'pages/index.ts');
+    const future = new Date(Date.now() + 2000);
+    await fs.utimes(barrel, future, future);
+    const stale = capture();
+    expect(await main(['node', 'scout', 'map', '--root', root, '--if-stale'], stale.writers)).toBe(0);
+    expect(stale.output.stdout).toContain('scout: indexed 4 spec files');
+
     const custom = capture();
     expect(await main(['node', 'scout', 'map', '--root', root, '--out', 'artifacts/scout.json', '--json'], custom.writers)).toBe(0);
     expect(JSON.parse(custom.output.stdout)).toMatchObject({ specFiles: 4, tests: 7, helpers: 7, indexPath: 'artifacts/scout.json' });

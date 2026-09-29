@@ -29,7 +29,7 @@
   - The parser and builder handle empty/comment-only files, large files, and config/path edge cases without crashing.
 - [x] T10 Skill & installer
   - Implemented the bundled skill installer and wired the CLI install-skill command to copy the correct SKILL.md into agent target directories.
-- [ ] T11 Docs
+- [x] T11 Docs — README examples, known limitations, and installer path guidance synchronized with verified CLI behavior.
 - [ ] T12 Dry run on real code
 - [ ] T13 Release prep
 
@@ -42,3 +42,4 @@
 - [x] F5 — Implemented weighted search fields, deterministic ordering, strict show resolution, and ambiguity reporting; `npm run check` passes with 57 tests.
 - [x] F6 — Wired the compiled CLI options, output formatting, injected writers, and documented exit codes; verified built map/find/show/missing-index commands and `npm run check` passes with 60 tests.
 - [x] F7 — Added parse, build, and link tests plus empty/comment, oversized, CRLF, non-UTF8, Windows-path, and 1,000-spec robustness coverage; `npm run check` passes with 70 tests.
+- [x] F8 — Updated README and skill commands from fresh sample-suite runs, added known limitations and installer-path verification guidance, and recorded helper-directory counting; `npm run check` passes with 70 tests.
