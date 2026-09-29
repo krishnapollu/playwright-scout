@@ -1,11 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { readConfig } from './config.js';
+import { readConfig, readTsAliasConfig } from './config.js';
 import { detectLanguage, discoverFiles } from './discover.js';
 import { parseFile, getParseErrors } from './parse.js';
 import { linkFiles } from './link.js';
 import { IndexSchema, type Index, type Diagnostic } from './schema.js';
 import { extractFacts, type FileFacts } from './facts.js';
+import { resolveSpecifier } from './resolve.js';
 
 export interface BuildIndexOptions {
   root: string;
@@ -18,12 +19,18 @@ export async function buildIndex(options: BuildIndexOptions): Promise<Index> {
   const config = readConfig(root);
   const testDir = config.testDir || '.';
   const discover = await discoverFiles(root, testDir, config.testMatch, options.include ?? []);
-  const allFiles = [...new Set([...discover.specFiles, ...discover.supportFiles])].sort();
   const specFiles = new Set(discover.specFiles);
   const factsByFile = new Map<string, FileFacts>();
   const diagnostics: Diagnostic[] = [...config.diagnostics, ...discover.diagnostics];
+  const aliasConfig = readTsAliasConfig(root, testDir);
+  const selectedFiles = new Set([...discover.specFiles, ...discover.supportFiles]);
+  const queue = [...discover.specFiles];
+  let queueIndex = 0;
+  let unresolvedCount = 0;
 
-  for (const rel of allFiles) {
+  while (queueIndex < queue.length) {
+    const rel = queue[queueIndex++];
+    if (!rel || factsByFile.has(rel)) continue;
     const abs = path.join(root, rel);
     const text = await fs.readFile(abs, 'utf8');
     const parsed = parseFile(rel, text);
@@ -58,9 +65,59 @@ export async function buildIndex(options: BuildIndexOptions): Promise<Index> {
       }
     }
     factsByFile.set(rel, facts);
+
+    for (const specifier of [...facts.imports.map((item) => item.specifier), ...facts.exports.flatMap((item) => item.from ? [item.from] : [])]) {
+      const target = resolveSpecifier(rel, specifier, aliasConfig, root);
+      if (target) {
+        selectedFiles.add(target);
+        if (!factsByFile.has(target)) queue.push(target);
+      } else if (specifier.startsWith('.') && unresolvedCount < 50) {
+        diagnostics.push({
+          code: 'UNRESOLVED_IMPORT',
+          severity: 'info',
+          message: `Unable to resolve import: ${specifier}`,
+          file: rel,
+          line: null,
+        });
+        unresolvedCount++;
+      }
+    }
   }
 
-  const linked = linkFiles(allFiles, factsByFile, diagnostics);
+  const allFiles = [...selectedFiles].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+  for (const rel of allFiles) {
+    if (factsByFile.has(rel)) continue;
+    const text = await fs.readFile(path.join(root, rel), 'utf8');
+    const parsed = parseFile(rel, text);
+    const parseErrors = getParseErrors(parsed);
+    const facts = extractFacts(rel, parsed, false);
+    if (parseErrors.length > 0) {
+      const first = parseErrors[0];
+      if (first) {
+        const line = first.start ? parsed.getLineAndCharacterOfPosition(first.start).line + 1 : null;
+        diagnostics.push({ code: 'PARSE_ERROR', severity: 'warn', message: first.messageText ? String(first.messageText) : 'Parse error', file: rel, line });
+      }
+      facts.helperDetails = [];
+      facts.fixtureDefs = [];
+      facts.references = new Set<string>();
+    }
+    factsByFile.set(rel, facts);
+  }
+
+  const linked = linkFiles(allFiles, factsByFile, diagnostics, {
+    root,
+    aliasConfig,
+    specFiles,
+  });
+  if (linked.specs.length === 0 || linked.tests.length === 0) {
+    diagnostics.push({
+      code: 'NO_TESTS_FOUND',
+      severity: 'error',
+      message: linked.specs.length === 0 ? 'No spec files found' : 'No tests found',
+      file: null,
+      line: null,
+    });
+  }
 
   const project: Index['project'] = {
     configFile: config.configFile,

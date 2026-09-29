@@ -90,27 +90,27 @@ export async function discoverFiles(
   }
 
   const supportSet = new Set<string>();
+  const specSet = new Set(specFiles);
 
-  const rootSources = await fg(SOURCE_EXTS, {
-    cwd: root,
-    ignore: IGNORE,
-    absolute: false,
-    onlyFiles: true,
-  });
-
-  const rootSpecSet = new Set(specFiles.map((f) => f.split('/').join(path.sep)));
-  for (const rel of rootSources) {
-    const normalized = rel.split(path.sep).join('/');
-    if (normalized.endsWith('.d.ts')) continue;
-    if (rootSpecSet.has(normalized)) continue;
-    supportSet.add(normalized);
+  if (testDir !== '.') {
+    const allUnderTestDir = await fg(SOURCE_EXTS, {
+      cwd: testDirAbs,
+      ignore: IGNORE,
+      absolute: false,
+      onlyFiles: true,
+    });
+    for (const rel of allUnderTestDir) {
+      if (rel.endsWith('.d.ts')) continue;
+      const normalized = `${testDir}/${rel}`.split(path.sep).join('/');
+      if (!specSet.has(normalized)) supportSet.add(normalized);
+    }
   }
 
   if (extraIncludes.length > 0) {
     const extras = await fg(extraIncludes, { cwd: root, ignore: IGNORE, absolute: false, onlyFiles: true });
     for (const rel of extras) {
       const normalized = rel.split(path.sep).join('/');
-      if (!normalized.endsWith('.d.ts')) supportSet.add(normalized);
+      if (!normalized.endsWith('.d.ts') && !specSet.has(normalized)) supportSet.add(normalized);
     }
   }
 

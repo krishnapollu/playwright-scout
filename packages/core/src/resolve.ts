@@ -1,9 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import ts from 'typescript';
 import type { TsAliasConfig } from './config.js';
+import type { FileFacts } from './facts.js';
 import { normalizePath } from './paths.js';
-import { parseFile } from './parse.js';
 
 const SOURCE_EXTS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'];
 const IGNORED_SEGMENTS = new Set([
@@ -27,25 +26,18 @@ export interface ExportResolution {
   localName: string | null;
 }
 
-function rootPath(): string {
-  return process.cwd();
-}
-
-function isWithinRoot(fullPath: string): boolean {
-  const root = rootPath();
+function isWithinRoot(fullPath: string, root: string): boolean {
   const rel = path.relative(root, fullPath);
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
-function isIgnored(fullPath: string): boolean {
-  const root = rootPath();
+function isIgnored(fullPath: string, root: string): boolean {
   const rel = path.relative(root, fullPath);
   const segments = rel.split(path.sep);
   return segments.some((segment) => IGNORED_SEGMENTS.has(segment));
 }
 
-function resolveCandidateFile(base: string): string | null {
-  const root = rootPath();
+function resolveCandidateFile(base: string, root: string): string | null {
   const candidates = new Set<string>();
 
   const append = (value: string) => {
@@ -53,14 +45,14 @@ function resolveCandidateFile(base: string): string | null {
     candidates.add(value);
   };
 
-  append(base);
-
   const ext = path.extname(base);
-  if (['.js', '.mjs', '.cjs', '.jsx'].includes(ext)) {
+  const jsExtensions: Record<string, string> = { '.js': '.ts', '.mjs': '.mts', '.cjs': '.cts', '.jsx': '.tsx' };
+  if (ext in jsExtensions) {
     const withoutExt = base.slice(0, -ext.length);
-    for (const item of SOURCE_EXTS) append(withoutExt + item);
+    append(withoutExt + jsExtensions[ext]);
+    append(base);
   } else if (SOURCE_EXTS.includes(ext)) {
-    // Keep the existing file explicitly.
+    append(base);
   } else {
     for (const item of SOURCE_EXTS) append(base + item);
     for (const item of SOURCE_EXTS) append(path.join(base, `index${item}`));
@@ -68,7 +60,7 @@ function resolveCandidateFile(base: string): string | null {
 
   for (const candidate of candidates) {
     const full = path.resolve(candidate);
-    if (!isWithinRoot(full) || isIgnored(full)) continue;
+    if (!isWithinRoot(full, root) || isIgnored(full, root)) continue;
     if (fs.existsSync(full) && fs.statSync(full).isFile()) {
       return normalizePath(path.relative(root, full));
     }
@@ -77,14 +69,13 @@ function resolveCandidateFile(base: string): string | null {
   return null;
 }
 
-export function resolveSpecifier(fromFile: string, specifier: string, aliasConfig: TsAliasConfig): string | null {
+export function resolveSpecifier(fromFile: string, specifier: string, aliasConfig: TsAliasConfig, root = process.cwd()): string | null {
   if (!specifier || specifier.startsWith('node:') || specifier.startsWith('http:') || specifier.startsWith('https:')) {
     return null;
   }
 
-  const root = rootPath();
   const probe = (base: string): string | null => {
-    const resolved = resolveCandidateFile(base);
+    const resolved = resolveCandidateFile(base, root);
     if (resolved) return resolved;
     return null;
   };
@@ -124,83 +115,39 @@ export function resolveSpecifier(fromFile: string, specifier: string, aliasConfi
   return null;
 }
 
-function hasExportModifier(node: ts.Node): boolean {
-  if (!ts.canHaveModifiers(node)) return false;
-  const modifiers = ts.getModifiers(node);
-  return !!modifiers?.some((modifier: ts.Modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
-}
-
-export function resolveExport(file: string, exportName: string, seen = new Set<string>()): ExportResolution | null {
+export function resolveExportFromFacts(
+  factsByFile: Map<string, FileFacts>,
+  resolve: (fromFile: string, specifier: string) => string | null,
+  file: string,
+  exportName: string,
+  seen = new Set<string>(),
+): ExportResolution | null {
   const key = `${file}#${exportName}`;
   if (seen.has(key)) return null;
   seen.add(key);
 
-  const root = rootPath();
-  const fullPath = path.resolve(root, file);
-  if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) return null;
-
-  const sourceFile = parseFile(file, fs.readFileSync(fullPath, 'utf8'));
-
-  for (const stmt of sourceFile.statements) {
-    if (ts.isExportDeclaration(stmt)) {
-      if (stmt.exportClause && ts.isNamedExports(stmt.exportClause)) {
-        for (const element of stmt.exportClause.elements) {
-          const exportedName = element.name.text;
-          const importedName = element.propertyName ? element.propertyName.text : element.name.text;
-          if (exportedName === exportName) {
-            if (stmt.moduleSpecifier && ts.isStringLiteralLike(stmt.moduleSpecifier)) {
-              const target = resolveSpecifier(file, stmt.moduleSpecifier.text, {
-                baseUrl: undefined,
-                paths: undefined,
-                pathsBasePath: root,
-              });
-              if (target) return resolveExport(target, importedName, seen);
-              return null;
-            }
-            return { file, localName: importedName };
-          }
-        }
-      }
-
-      if (!stmt.exportClause && stmt.moduleSpecifier && ts.isStringLiteralLike(stmt.moduleSpecifier)) {
-        if (exportName === 'default') continue;
-        const target = resolveSpecifier(file, stmt.moduleSpecifier.text, {
-          baseUrl: undefined,
-          paths: undefined,
-          pathsBasePath: root,
-        });
-        if (target) {
-          const resolved = resolveExport(target, exportName, seen);
-          if (resolved) return resolved;
-        }
-      }
-    }
-
-    if (ts.isExportAssignment(stmt)) {
-      if (exportName !== 'default') continue;
-      if (ts.isIdentifier(stmt.expression)) return { file, localName: stmt.expression.text };
-      return { file, localName: null };
-    }
-
-    if (ts.isVariableStatement(stmt) && hasExportModifier(stmt)) {
-      for (const decl of stmt.declarationList.declarations) {
-        const name = ts.isIdentifier(decl.name) ? decl.name.text : null;
-        if (name === exportName) return { file, localName: name };
-      }
-    }
-
-    if (ts.isFunctionDeclaration(stmt) && hasExportModifier(stmt) && stmt.name && stmt.name.text === exportName) {
-      return { file, localName: stmt.name.text };
-    }
-
-    if (ts.isClassDeclaration(stmt) && hasExportModifier(stmt) && stmt.name && stmt.name.text === exportName) {
-      return { file, localName: stmt.name.text };
-    }
-
-    if ((ts.isFunctionDeclaration(stmt) || ts.isClassDeclaration(stmt)) && hasExportModifier(stmt) && exportName === 'default') {
-      return { file, localName: stmt.name?.text ?? null };
+  const facts = factsByFile.get(file);
+  if (!facts) return null;
+  for (const entry of facts.exports) {
+    if (entry.exportName === exportName && entry.localName) {
+      if (!entry.from) return { file, localName: entry.localName };
+      const target = resolve(file, entry.from);
+      if (target) return resolveExportFromFacts(factsByFile, resolve, target, entry.importedName ?? entry.localName, seen);
     }
   }
+
+  if (exportName !== 'default') {
+    for (const entry of facts.exports) {
+      if (!entry.star || !entry.from) continue;
+      const target = resolve(file, entry.from);
+      if (!target) continue;
+      const result = resolveExportFromFacts(factsByFile, resolve, target, exportName, seen);
+      if (result) return result;
+    }
+  }
+
+  const anonymousDefault = facts.exports.find((entry) => entry.exportName === 'default' && entry.localName === null);
+  if (exportName === 'default' && anonymousDefault) return { file, localName: null };
 
   return null;
 }

@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
 import path from 'node:path';
 import { discoverFiles, detectLanguage } from '../src/discover.js';
-import { resolveSpecifier, resolveExport } from '../src/resolve.js';
+import { extractFacts } from '../src/facts.js';
+import { parseFile } from '../src/parse.js';
+import { resolveExportFromFacts, resolveSpecifier } from '../src/resolve.js';
 
 const SAMPLE = path.resolve(import.meta.dirname, '../../../fixtures/sample-suite');
 
@@ -48,7 +51,7 @@ describe('detectLanguage', () => {
   });
 });
 
-describe('resolveSpecifier and resolveExport', () => {
+describe('resolveSpecifier and resolveExportFromFacts', () => {
   const SAMPLE = path.resolve(import.meta.dirname, '../../../fixtures/sample-suite');
 
   it('resolves relative and alias imports', () => {
@@ -56,22 +59,34 @@ describe('resolveSpecifier and resolveExport', () => {
       baseUrl: undefined,
       paths: undefined,
       pathsBasePath: SAMPLE,
-    })).toBe('fixtures/sample-suite/pages/login.page.ts');
+    }, path.resolve(SAMPLE, '..', '..'))).toBe('fixtures/sample-suite/pages/login.page.ts');
 
     expect(resolveSpecifier('fixtures/sample-suite/tests/login.spec.ts', '@utils/auth', {
       baseUrl: undefined,
       paths: { '@utils/*': ['utils/*'] },
       pathsBasePath: SAMPLE,
-    })).toBe('fixtures/sample-suite/utils/auth.ts');
+    }, path.resolve(SAMPLE, '..', '..'))).toBe('fixtures/sample-suite/utils/auth.ts');
   });
 
   it('resolves exports through barrel files', () => {
-    expect(resolveExport('fixtures/sample-suite/pages/index.ts', 'LoginPage')).toMatchObject({
+    const root = path.resolve(SAMPLE, '..', '..');
+    const fileNames = ['pages/index.ts', 'pages/login.page.ts', 'pages/checkout.page.ts'];
+    const factsByFile = new Map(fileNames.map((file) => {
+      const text = fs.readFileSync(path.join(SAMPLE, file), 'utf8');
+      return [`fixtures/sample-suite/${file}`, extractFacts(file, parseFile(file, text), false)];
+    }));
+    const resolve = (from: string, specifier: string) => resolveSpecifier(from, specifier, {
+      baseUrl: undefined,
+      paths: undefined,
+      pathsBasePath: SAMPLE,
+    }, root);
+
+    expect(resolveExportFromFacts(factsByFile, resolve, 'fixtures/sample-suite/pages/index.ts', 'LoginPage')).toMatchObject({
       file: 'fixtures/sample-suite/pages/login.page.ts',
       localName: 'LoginPage',
     });
 
-    expect(resolveExport('fixtures/sample-suite/pages/index.ts', 'CheckoutPage')).toMatchObject({
+    expect(resolveExportFromFacts(factsByFile, resolve, 'fixtures/sample-suite/pages/index.ts', 'CheckoutPage')).toMatchObject({
       file: 'fixtures/sample-suite/pages/checkout.page.ts',
       localName: 'CheckoutPage',
     });
