@@ -42,71 +42,17 @@ Scout writes the index to `.scout/index.json`. Add `.scout/` to your repositoryâ
 
 ## Commands
 
-### `map`
+| Command         | What it does                                                          | Example                                                    |
+| --------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `map`           | Build or refresh the project index.                                   | `npx playwright-scout map`                                 |
+| `find`          | Search helpers, methods, tests, fixtures, and tags.                   | `npx playwright-scout find login`                          |
+| `context`       | Show matching code plus related specs, fixtures, helpers, and routes. | `npx playwright-scout context "authenticated checkout"`    |
+| `show`          | Inspect a result by ID or readable label.                             | `npx playwright-scout show LoginPage.login`                |
+| `impact`        | See tests and helpers related to a helper or page-object change.      | `npx playwright-scout impact CheckoutPage.applyCoupon`     |
+| `plan`          | Create an evidence-based reuse plan for an agent task.                | `npx playwright-scout plan "add checkout coupon coverage"` |
+| `install-skill` | Install the agent instructions for a supported coding assistant.      | `npx playwright-scout install-skill`                       |
 
-Scan a project and create its index.
-
-```bash
-npx playwright-scout map [--root <dir>] [--no-timestamp]
-```
-
-Useful options include `--include <glob...>` for additional helper files, `--if-stale` to avoid unnecessary work, and `--json` for scripting.
-
-### `find`
-
-Search helpers, methods, tests, fixtures, and tags.
-
-```bash
-npx playwright-scout find <words...>
-npx playwright-scout find login --kind helper --limit 5
-```
-
-Search results include the matching item, source location, and a short summary.
-
-### `context`
-
-Build a compact, task-oriented view from the index.
-
-```bash
-npx playwright-scout context "authenticated checkout"
-```
-
-This combines search matches with related specs, helpers, fixtures, and routes.
-
-### `show`
-
-Display the details of a result by its ID or a readable label.
-
-```bash
-npx playwright-scout show LoginPage.login
-npx playwright-scout show helper:pages/login.page.ts#LoginPage --json
-```
-
-### `impact`
-
-See which indexed tests and helpers may be affected by a helper or page-object change.
-
-```bash
-npx playwright-scout impact CheckoutPage.applyCoupon
-```
-
-### `plan`
-
-Create an evidence-based reuse plan for an agent task.
-
-```bash
-npx playwright-scout plan "add checkout coupon coverage"
-```
-
-### `install-skill`
-
-Install the bundled agent skill so your coding assistant can use Scout automatically before changing Playwright code.
-
-```bash
-npx playwright-scout install-skill
-```
-
-Use `--target claude|agents|github|cursor|all` to choose the destination.
+Most query commands support `--json` for structured output. Use `--root <dir>` for another project, `--if-stale` with `map` to skip a current index, and `--target claude\|agents\|github\|cursor\|all` with `install-skill` to choose the destination. See the [CLI reference](docs/CLI.md) for all options.
 
 ## How it works
 
