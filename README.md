@@ -50,7 +50,7 @@ Scout writes the index to `.scout/index.json`. Add `.scout/` to your repositoryâ
 | `show`          | Inspect a result by ID or readable label.                             | `npx playwright-scout show LoginPage.login`                |
 | `impact`        | See tests and helpers related to a helper or page-object change.      | `npx playwright-scout impact CheckoutPage.applyCoupon`     |
 | `plan`          | Create an evidence-based reuse plan for an agent task.                | `npx playwright-scout plan "add checkout coupon coverage"` |
-| `install-skill` | Install the agent instructions for a supported coding assistant.      | `npx playwright-scout install-skill`                       |
+| `install-skill` | Install the agent instructions for a supported coding assistant.      | `npx playwright-scout install-skill --target claude`       |
 
 ### Common options
 
