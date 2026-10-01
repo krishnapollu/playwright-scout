@@ -72,7 +72,7 @@ Each completed milestone updates `docs/PROGRESS.md`, passes `npm run check` when
 ## 8. Decisions required before E1/E2
 
 1. Which agent/model and provider telemetry can be frozen for the entire evaluation? If the local 9B model is used, confirm that actual prompt/completion token counts are exposed and stable.
-2. Which three suites may be used, and may their source be sent to the chosen provider? Public examples alone may not be representative.
+2. **Resolved in part:** use public suites only. Candidate repositories and pinned revisions are screened in `bench/E1-CANDIDATES.md`; their baseline checks and final selection are not yet frozen. Public examples alone may not be representative.
 3. What run budget (money and wall time) is authorized? Forty-eight main runs plus pilot may be substantial; the harness must enforce a per-run cap and stop at the approved total.
 4. Who will provide independent blind review, especially for business behavior not inferable from source?
 

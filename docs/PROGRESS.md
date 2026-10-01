@@ -64,3 +64,4 @@
 
 ## v0.4 controlled agent evaluation
 - [x] E0 Protocol draft — Specified the paired with/without-Scout evaluation, task and suite requirements, actual token telemetry, blind quality review, predeclared thresholds, privacy boundaries, and ordered milestones in `docs/SPEC-v0.4.md`. No agent runs or product behavior changes. Execution awaits suite/model/budget/reviewer decisions.
+- [ ] E1 Freeze task set — User selected public suites only. Screened three pinned candidate projects: a POM/fixture-rich local-app demo (9 specs, 108 tests), auto-animate (12 specs, 22 tests), and Starlight (7 specs, 62 tests at its package root). Added four conditional pilot cases with source evidence and open check prerequisites in `bench/E1-CANDIDATES.md`. The demo's typecheck, targeted API, and targeted Chromium UI baselines pass after a temporary browser install; no agent runs. Twelve main cases and checks for the other suites remain.
