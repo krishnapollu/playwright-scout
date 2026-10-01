@@ -6,6 +6,7 @@ import { showCommand } from './commands/show.js';
 import { installSkillCommand } from './commands/installSkill.js';
 import { contextCommand } from './commands/context.js';
 import { impactCommand } from './commands/impact.js';
+import { fileImpactCommand } from './commands/fileImpact.js';
 import { planCommand } from './commands/plan.js';
 import { readIndex, ScoutError } from 'playwright-scout-core';
 import { formatFindResults, formatShowEntry } from './format.js';
@@ -141,12 +142,28 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
     });
 
   program
-    .command('impact <id>')
+    .command('impact [id]')
     .description('show indexed tests and helpers affected by an entry')
     .option('--root <dir>', 'root directory', process.cwd())
+    .option('--file <path>', 'existing root-relative source file')
     .option('--json')
-    .action(async (id: string, options) => {
+    .action(async (id: string | undefined, options) => {
       const index = await readIndex(options.root ?? process.cwd());
+      if (options.file) {
+        if (id) throw new ScoutError('USAGE', 'provide either an entry ID or --file, not both');
+        const result = await fileImpactCommand(index, options.root ?? process.cwd(), options.file);
+        if (options.json) writers.stdout(`${JSON.stringify(result)}\n`);
+        else writers.stdout(`${[
+          `file: ${result.file}`,
+          'knownAffectedTests:',
+          ...result.knownAffectedTests.map((test) => `- ${test.id} ${test.file}:${test.line} (${test.reasons.join(', ')})`),
+          ...(result.knownAffectedTests.length ? [] : ['- No affected tests proven by the index.']),
+          'analysisLimits:',
+          ...result.analysisLimits.map((limit) => `- ${limit}`),
+        ].join('\n')}\n`);
+        return;
+      }
+      if (!id) throw new ScoutError('USAGE', 'provide an entry ID or --file');
       const result = impactCommand(index, id);
       if (result.status === 'not_found') throw new ScoutError('NOT_FOUND', `not found: ${id}`);
       if (result.status === 'ambiguous') throw new ScoutError('AMBIGUOUS', `ambiguous: ${id}`);

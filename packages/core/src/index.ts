@@ -12,4 +12,5 @@ export * from './show.js';
 export * from './context.js';
 export * from './task-context.js';
 export * from './impact.js';
+export * from './file-impact.js';
 export * from './plan.js';

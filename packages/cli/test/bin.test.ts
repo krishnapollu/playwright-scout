@@ -117,6 +117,29 @@ describe('CLI commands', () => {
     expect(await main(['node', 'scout', 'context', 'coupon', '--root', root, '--max-chars', '499'], invalid.writers)).toBe(2);
   });
 
+  it('reports file impact and rejects unsafe paths', async () => {
+    const root = await sampleRoot();
+    expect(await main(['node', 'scout', 'map', '--root', root], capture().writers)).toBe(0);
+    const impact = capture();
+    expect(await main(['node', 'scout', 'impact', '--file', 'pages/login.page.ts', '--root', root, '--json'], impact.writers)).toBe(0);
+    const parsed = JSON.parse(impact.output.stdout) as { knownAffectedTests: Array<{ file: string; reasons: string[] }> };
+    expect(parsed.knownAffectedTests.some((test) => test.file === 'tests/login.spec.ts' && test.reasons.includes('helper_call'))).toBe(true);
+
+    for (const file of ['../outside.ts', path.join(root, 'pages/login.page.ts'), 'missing.ts']) {
+      const rejected = capture();
+      expect(await main(['node', 'scout', 'impact', '--file', file, '--root', root], rejected.writers)).toBe(2);
+    }
+    const outside = await tempRoot('scout-impact-outside-');
+    await fs.writeFile(path.join(outside, 'target.ts'), 'export const x = 1;');
+    await fs.symlink(path.join(outside, 'target.ts'), path.join(root, 'escaped.ts'));
+    const escaped = capture();
+    expect(await main(['node', 'scout', 'impact', '--file', 'escaped.ts', '--root', root], escaped.writers)).toBe(2);
+
+    const empty = capture();
+    expect(await main(['node', 'scout', 'impact', '--file', 'tests/support/unused.ts', '--root', root], empty.writers)).toBe(0);
+    expect(empty.output.stdout).toContain('No affected tests proven by the index');
+  });
+
   it('returns the documented usage, missing-index, no-tests, and not-found codes', async () => {
     const root = await tempRoot('scout-cli-empty-');
     const missing = capture();

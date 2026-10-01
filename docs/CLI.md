@@ -38,9 +38,10 @@ Shows an exact ID, a unique suffix after `#` or `::`, or a whole label. Ambiguou
 
 ```sh
 playwright-scout impact <id-or-label> [--root <dir>] [--json]
+playwright-scout impact --file <root-relative-source-file> [--root <dir>] [--json]
 ```
 
-Shows indexed tests and helpers related to a helper or method. Missing or ambiguous entries return exit code 5.
+The entry form shows indexed tests and helpers related to a helper or method. Missing or ambiguous entries return exit code 5. The file form reports `knownAffectedTests` with `direct_spec`, `helper_call`, or `fixture_provider` reasons, plus analysis limits. It accepts only an existing source file inside the root; absolute paths, traversal, and symlink escapes are rejected. An empty list means no affected tests were proven by the index, not that other tests are safe to skip.
 
 ## `plan`
 
