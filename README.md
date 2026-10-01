@@ -1,14 +1,14 @@
 # playwright-scout
 
-> Your coding agent finds the Playwright helpers you already have before it writes new ones.
+> Give your coding agent a map of your Playwright suite.
 
 [![CI](https://github.com/krishnapollu/playwright-scout/actions/workflows/ci.yml/badge.svg)](https://github.com/krishnapollu/playwright-scout/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/playwright-scout)](https://www.npmjs.com/package/playwright-scout)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-`playwright-scout` is a static index and search tool for Playwright projects. It helps developers and coding agents discover existing page objects, helpers, fixtures, tests, tags, and routes—so new test code builds on what is already there instead of creating duplicates.
+`playwright-scout` is an agent skill, static index, and search tool for Playwright projects. It helps coding agents understand existing page objects, helpers, fixtures, tests, tags, routes, and relationships before they change or extend a suite.
 
-It reads your source code without running your tests or project code.
+Scout reads your source code without running your tests or project code, giving agents a reliable map they can query before writing new code. That means new tests can build on what is already there instead of creating duplicates.
 
 ## Why use it?
 
