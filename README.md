@@ -122,6 +122,17 @@ node packages/cli/dist/bin.js map --root fixtures/sample-suite
 node packages/cli/dist/bin.js find login --root fixtures/sample-suite
 ```
 
+## Publishing (maintainers)
+
+Put your npm publish token in a local `.env` file as `npm_pat=...`. The file is ignored by Git. Then run:
+
+```bash
+npm run release:publish -- --dry-run
+npm run release:publish
+```
+
+The script checks the release, confirms the contents of both packages, and prompts before publishing core followed by the CLI. It skips a version that is already on npm, so you can rerun it if the second package fails. For prereleases, set matching versions in both packages and use `--tag next`.
+
 ## License
 
 [MIT](LICENSE)

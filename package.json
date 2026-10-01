@@ -2,15 +2,20 @@
   "name": "playwright-scout-monorepo",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*"],
-  "engines": { "node": ">=20" },
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b && tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "check": "npm run lint && npm run typecheck && npm run test"
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "release:publish": "node scripts/publish.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

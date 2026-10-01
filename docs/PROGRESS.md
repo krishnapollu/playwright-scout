@@ -44,3 +44,6 @@
 - [x] F7 — Added parse, build, and link tests plus empty/comment, oversized, CRLF, non-UTF8, Windows-path, and 1,000-spec robustness coverage; `npm run check` passes with 70 tests.
 - [x] F8 — Updated README and skill commands from fresh sample-suite runs, added known limitations and installer-path verification guidance, and recorded helper-directory counting; `npm run check` passes with 70 tests.
 - [x] F9 — Completed public-project dry runs, package metadata and contents review, and fresh-project installation/execution of both tarballs; publishing remains a human-only step.
+
+## Maintainer tooling
+- Added a human-run npm release script with PAT loading, authentication and version checks, package-content validation, confirmation, and core-first publishing. Its dry run passed with 71 tests; no package was published by the script during verification.
