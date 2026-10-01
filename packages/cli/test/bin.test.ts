@@ -47,6 +47,22 @@ describe('CLI commands', () => {
     });
   });
 
+  it('reviews an explicit file without an index and rejects unsafe paths', async () => {
+    const root = fileURLToPath(new URL('../../../fixtures/guidance-suite', import.meta.url));
+    const output = capture();
+    expect(await main(['node', 'scout', 'review', '--root', root, '--file', 'tests/example.spec.ts', '--json'], output.writers)).toBe(0);
+    expect((JSON.parse(output.output.stdout) as { findings: unknown[] }).findings).toHaveLength(2);
+    for (const file of ['../outside.ts', path.join(root, 'tests/example.spec.ts'), 'missing.ts']) {
+      const invalid = capture();
+      expect(await main(['node', 'scout', 'review', '--root', root, '--file', file], invalid.writers)).toBe(2);
+    }
+    const outside = await tempRoot('scout-review-outside-');
+    await fs.writeFile(path.join(outside, 'escaped.ts'), 'export const x = 1;');
+    const suite = await sampleRoot();
+    await fs.symlink(path.join(outside, 'escaped.ts'), path.join(suite, 'escaped.ts'));
+    expect(await main(['node', 'scout', 'review', '--root', suite, '--file', 'escaped.ts'], capture().writers)).toBe(2);
+  });
+
   it('maps the sample suite, writes the gitignore, and skips a current index', async () => {
     const root = await sampleRoot();
     const first = capture();

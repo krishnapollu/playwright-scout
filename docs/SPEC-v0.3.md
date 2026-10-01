@@ -20,8 +20,8 @@ The first check is deliberately narrow: an explicitly configured, literal `testD
 
 `playwright-scout review --file <root-relative-source-file> [--root <dir>] [--json]` reviews one explicitly chosen spec or support source file. It does not require an index. The path must exist, be a supported source extension, and remain inside the root after symlink resolution; absolute paths and traversal are rejected. The initial rules are narrowly syntax-based:
 
-- `waitForTimeout` called on a Playwright `page` or locator-like expression: suggest waiting for an observable condition instead of a fixed delay. Do not flag arbitrary objects with that method name.
-- `expect(await <locator>.isVisible()).toBe(true)`: suggest a web-first `await expect(<locator>).toBeVisible()` assertion. Do not flag unrelated boolean assertions.
+- `waitForTimeout` called on a `page` parameter destructured from an imported Playwright `test` callback: suggest waiting for an observable condition instead of a fixed delay. Do not flag arbitrary objects with that method name.
+- `expect(await <locator>.isVisible()).toBe(true)` where `expect` is imported from Playwright and the locator is an inline `page.getBy*` or `page.locator` expression in such a test callback: suggest a web-first `await expect(<locator>).toBeVisible()` assertion. Do not flag unrelated boolean assertions or inferred locator variables.
 
 If the syntax does not prove the pattern, emit no finding. The review does not auto-rewrite code or imply a test will fail. No project-wide sweep or numeric quality score in this release.
 
@@ -47,5 +47,5 @@ For each implementation milestone: focused tests, `npm run check`, progress upda
 
 - [x] **D0 — Contract and baselines.** Freeze command shape and limited rules above; capture representative fixtures, expected findings, non-findings, and unsupported cases. No production behavior change.
 - [x] **D1 — Doctor.** Implement the static config-path check and deterministic text/JSON CLI output. Verify missing/dynamic config, literal existing/missing paths, and zero exit code for advice.
-- [ ] **D2 — Review.** Implement safe file validation and the two conservative AST rules. Test true and false positives, path escape, output ordering, and no index requirement.
+- [x] **D2 — Review.** Implement safe file validation and the two conservative AST rules. Test true and false positives, path escape, output ordering, and no index requirement.
 - [ ] **D3 — Documentation and installed skill.** Update CLI/README/skill, verify the packaged skill copy and installed CLI, record limitations and an opt-in real-suite smoke check. Do not add a routine review step or claim agent-level gains.

@@ -15,3 +15,4 @@ export * from './impact.js';
 export * from './file-impact.js';
 export * from './plan.js';
 export * from './doctor.js';
+export * from './review.js';

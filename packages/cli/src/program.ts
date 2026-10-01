@@ -1,14 +1,15 @@
 import { Command, CommanderError, InvalidArgumentError, Option } from 'commander';
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import { isUpToDate, mapCommand } from './commands/map.js';
 import { findCommand } from './commands/find.js';
 import { showCommand } from './commands/show.js';
 import { installSkillCommand } from './commands/installSkill.js';
 import { contextCommand } from './commands/context.js';
 import { impactCommand } from './commands/impact.js';
-import { fileImpactCommand } from './commands/fileImpact.js';
+import { fileImpactCommand, validateSourceFile } from './commands/fileImpact.js';
 import { planCommand } from './commands/plan.js';
-import { doctor, readIndex, ScoutError } from 'playwright-scout-core';
+import { doctor, readIndex, reviewSource, ScoutError } from 'playwright-scout-core';
 import { formatFindResults, formatShowEntry } from './format.js';
 
 export interface OutputWriters {
@@ -197,6 +198,31 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
         return;
       }
       writers.stdout(`${[`task: ${result.query}`, 'recommendations:', ...result.recommendations.map((item) => `- ${item}`)].join('\n')}\n`);
+    });
+
+  program
+    .command('review')
+    .description('opt-in static review of one Playwright source file')
+    .requiredOption('--file <path>', 'existing root-relative source file')
+    .option('--root <dir>', 'root directory', process.cwd())
+    .option('--json')
+    .action(async (options) => {
+      const file = await validateSourceFile(options.root ?? process.cwd(), options.file);
+      const stat = await fs.stat(file.absolute);
+      if (stat.size > 1024 * 1024) throw new ScoutError('USAGE', '--file exceeds the 1 MiB review limit');
+      const source = await fs.readFile(file.absolute, 'utf8');
+      const result = reviewSource(file.relative, source);
+      if (options.json) {
+        writers.stdout(`${JSON.stringify(result)}\n`);
+        return;
+      }
+      writers.stdout(`${[
+        `review: ${file.relative}`,
+        'findings:',
+        ...(result.findings.length ? result.findings.map((item) => `- ${item.ruleId} ${item.file}:${item.line} — ${item.suggestion} (${item.guideUrl})`) : ['- None from the supported checks.']),
+        'unknowns:',
+        ...(result.unknowns.length ? result.unknowns.map((item) => `- ${item}`) : ['- None reported.']),
+      ].join('\n')}\n`);
     });
 
   program

@@ -6,10 +6,20 @@ import type { Index } from 'playwright-scout-core';
 const sourceExtension = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 
 export async function fileImpactCommand(index: Index, root: string, file: string) {
+  const source = await validateSourceFile(root, file);
+  return getFileImpact(index, source.relative);
+}
+
+export async function validateSourceFile(root: string, file: string): Promise<{ absolute: string; relative: string }> {
   if (!file || path.isAbsolute(file) || file.split(/[\\/]/).includes('..') || !sourceExtension.test(file) || file.endsWith('.d.ts')) {
     throw new ScoutError('USAGE', '--file must be an existing root-relative source file');
   }
-  const realRoot = await fs.realpath(root);
+  let realRoot: string;
+  try {
+    realRoot = await fs.realpath(root);
+  } catch {
+    throw new ScoutError('USAGE', '--root must be an existing directory');
+  }
   const target = path.resolve(realRoot, file);
   let realTarget: string;
   try {
@@ -19,6 +29,6 @@ export async function fileImpactCommand(index: Index, root: string, file: string
     throw new ScoutError('USAGE', '--file must be an existing root-relative source file');
   }
   const relative = path.relative(realRoot, realTarget);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) throw new ScoutError('USAGE', '--file escapes the project root');
-  return getFileImpact(index, relative.split(path.sep).join('/'));
+  if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) throw new ScoutError('USAGE', '--file escapes the project root');
+  return { absolute: realTarget, relative: relative.split(path.sep).join('/') };
 }
