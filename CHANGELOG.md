@@ -1,3 +1,9 @@
+## 0.3.0 - Unreleased
+
+- Add opt-in `doctor` for static Playwright config-path guidance.
+- Add opt-in single-file `review` for conservative fixed-wait and manual visibility assertion suggestions.
+- Keep guidance outside normal agent context/reuse workflows and non-blocking.
+
 ## 0.2.0 - Unreleased
 
 - Link direct fixture providers and fixture-mediated page object calls in index schema v2.

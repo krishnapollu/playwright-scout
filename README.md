@@ -40,6 +40,10 @@ npx playwright-scout show LoginPage.login
 # Get a small task brief or inspect known static impact
 npx playwright-scout context "add expired coupon coverage" --max-chars 6000
 npx playwright-scout impact --file pages/checkout.page.ts
+
+# Optional, on-request framework guidance
+npx playwright-scout doctor
+npx playwright-scout review --file tests/checkout.spec.ts
 ```
 
 Scout writes the index to `.scout/index.json`. Add `.scout/` to your repositoryâ€™s `.gitignore`; the index can always be regenerated.
@@ -54,6 +58,8 @@ Scout writes the index to `.scout/index.json`. Add `.scout/` to your repositoryâ
 | `show`          | Inspect a result by ID or readable label.                             | `npx playwright-scout show LoginPage.login`                |
 | `impact`        | Show known static links for a symbol or source file.                   | `npx playwright-scout impact --file pages/checkout.page.ts` |
 | `plan`          | Create an evidence-based reuse plan for an agent task.                | `npx playwright-scout plan "add checkout coupon coverage"` |
+| `doctor`        | Check a narrow set of static config facts on request.                 | `npx playwright-scout doctor`                               |
+| `review`        | Review one chosen file for a few supported test-code patterns.        | `npx playwright-scout review --file tests/checkout.spec.ts`  |
 | `install-skill` | Install the agent instructions for a supported coding assistant.      | `npx playwright-scout install-skill --target claude`       |
 
 ### Common options
@@ -90,6 +96,8 @@ The result is a deterministic JSON index that can be searched from the CLI or us
 
 When you ask an agent to extend your Playwright suite, the installed skill tells it to refresh the Scout index, search for relevant existing code, inspect promising matches, and reuse suitable helpers, fixtures, and page objects before creating anything new.
 
+`doctor` and `review` are separate, opt-in commands. They make suggestions only when asked and never block ordinary suite work. Their findings are based on a deliberately small set of static checks; an empty result is not proof that a framework has no issues.
+
 ## Using the library
 
 ```ts
@@ -112,7 +120,7 @@ Scout is intentionally focused on static discovery. It does not:
 - resolve every fixture shape, indirect call, or runtime dependency;
 - analyze multiple Playwright configs in one run.
 
-For the complete behavior and supported patterns, see the [v0.2 specification](docs/SPEC-v0.2.md) and [evaluation notes](docs/EVALUATION-v0.2.md). The [v0.1 specification](docs/SPEC.md) remains the baseline for earlier commands.
+For the complete behavior and supported patterns, see the [v0.3 guidance specification](docs/SPEC-v0.3.md), [v0.2 specification](docs/SPEC-v0.2.md), and [evaluation notes](docs/EVALUATION-v0.2.md). The [v0.1 specification](docs/SPEC.md) remains the baseline for earlier commands.
 
 ## Development
 

@@ -1,6 +1,6 @@
 # playwright-scout v0.3 — Opt-in suite guidance (draft)
 
-Status: **draft; not implemented**. The v0.1 and v0.2 specifications remain the contracts for existing commands.
+Status: **implementation complete; unpublished**. The v0.1 and v0.2 specifications remain the contracts for existing commands.
 
 ## Goal and boundary
 
@@ -48,4 +48,4 @@ For each implementation milestone: focused tests, `npm run check`, progress upda
 - [x] **D0 — Contract and baselines.** Freeze command shape and limited rules above; capture representative fixtures, expected findings, non-findings, and unsupported cases. No production behavior change.
 - [x] **D1 — Doctor.** Implement the static config-path check and deterministic text/JSON CLI output. Verify missing/dynamic config, literal existing/missing paths, and zero exit code for advice.
 - [x] **D2 — Review.** Implement safe file validation and the two conservative AST rules. Test true and false positives, path escape, output ordering, and no index requirement.
-- [ ] **D3 — Documentation and installed skill.** Update CLI/README/skill, verify the packaged skill copy and installed CLI, record limitations and an opt-in real-suite smoke check. Do not add a routine review step or claim agent-level gains.
+- [x] **D3 — Documentation and installed skill.** Update CLI/README/skill, verify the packaged skill copy and installed CLI, record limitations and an opt-in real-suite smoke check. Do not add a routine review step or claim agent-level gains.

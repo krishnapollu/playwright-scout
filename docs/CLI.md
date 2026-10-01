@@ -51,6 +51,15 @@ playwright-scout plan <query...> [--limit <n>] [--root <dir>] [--json]
 
 Builds a deterministic, evidence-based reuse plan from matching indexed code and its relationships.
 
+## `doctor` and `review` (opt-in)
+
+```sh
+playwright-scout doctor [--root <dir>] [--json]
+playwright-scout review --file <root-relative-source-file> [--root <dir>] [--json]
+```
+
+These advisory commands do not need an index, run tests, or edit code. `doctor` checks whether a literal configured `testDir` exists; missing and dynamic configs are reported as unknown, not defects. `review` inspects one explicitly chosen source file for a fixed wait on a Playwright `page` fixture and an inline-locator manual visibility assertion. It rejects absolute, traversal, missing, and symlink-escape paths and files over 1 MiB. Findings include a rule ID, source line, and official guidance link. Exit code 0 applies even when findings exist. An empty list means only that these limited checks found no match; it is not a suite-quality verdict. Neither command is part of ordinary Scout context/reuse workflows.
+
 ## `install-skill`
 
 ```sh

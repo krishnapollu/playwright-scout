@@ -1,6 +1,6 @@
 ---
 name: playwright-scout
-description: Use when creating or changing Playwright tests, page objects, fixtures, or test helpers in a project with Scout installed. Finds existing code and compact task context for reuse and change impact.
+description: Use when creating or changing Playwright tests, page objects, fixtures, or test helpers in a project with Scout installed, or when explicitly asked to review Playwright setup or test-code practices. Finds reusable code and known static impact; framework guidance is opt-in.
 ---
 
 # playwright-scout
@@ -19,4 +19,4 @@ Run these from the project root when the task involves Playwright code:
 
 Scout's brief reports observed patterns and unknowns; it does not know business expectations unless the user supplies them. Some fixture shapes and dynamic calls are unlinked. If something seems missing, inspect the code directly. Do not read or edit `.scout/index.json` by hand or commit `.scout/`. Use `--json` when structured output helps. Confirm that your agent reads the directory where `install-skill` placed this file.
 
-Framework reviews are separate, opt-in work. Do not interrupt an ordinary test task to critique a working setup. Runtime failures and artifacts belong to the project's Playwright tools and Logbook, if installed.
+Framework reviews are separate, opt-in work. Only when the user asks for setup guidance, run `npx playwright-scout doctor`; only when asked to review test-code practices, run `npx playwright-scout review --file <root-relative-source-file>`. Neither command needs an index. Treat findings as suggestions with narrow static evidence, not defects or a quality score. Do not interrupt an ordinary test task to critique a working setup, or require cleanup before unrelated work. Runtime failures and artifacts belong to the project's Playwright tools and Logbook, if installed.
