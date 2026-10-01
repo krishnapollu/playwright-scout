@@ -8,6 +8,8 @@
 
 `playwright-scout` is an agent skill, static index, and search tool for Playwright projects. It helps coding agents understand existing page objects, helpers, fixtures, tests, tags, routes, and relationships before they change or extend a suite. It can also provide a bounded, source-backed brief for a task.
 
+The v0.3.0 commands documented here are currently available from this repository, not yet published to npm. To try them from a checkout, run `npm ci`, `npm run build`, then `node packages/cli/dist/bin.js --help`. The npm quick start below installs the latest published version, which may not include them yet.
+
 Scout reads your source code without running your tests or project code, giving agents a reliable map they can query before writing new code. That means new tests can build on what is already there instead of creating duplicates.
 
 ## Why use it?
