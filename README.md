@@ -54,6 +54,17 @@ Scout writes the index to `.scout/index.json`. Add `.scout/` to your repositoryâ
 
 Most query commands support `--json` for structured output. Use `--root <dir>` for another project, `--if-stale` with `map` to skip a current index, and `--target claude\|agents\|github\|cursor\|all` with `install-skill` to choose the destination. See the [CLI reference](docs/CLI.md) for all options.
 
+By default, the skill is installed inside the current project:
+
+| Target   | Location                                   |
+| -------- | ------------------------------------------ |
+| `agents` | `.agents/skills/playwright-scout/SKILL.md` |
+| `claude` | `.claude/skills/playwright-scout/SKILL.md` |
+| `github` | `.github/skills/playwright-scout/SKILL.md` |
+| `cursor` | `.cursor/skills/playwright-scout/SKILL.md` |
+
+Use `--global` with `--target claude` to install it at `~/.claude/skills/playwright-scout/SKILL.md` instead.
+
 ## How it works
 
 Scout performs two static-analysis passes:
