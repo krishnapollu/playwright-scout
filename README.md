@@ -63,6 +63,16 @@ Scout performs two static-analysis passes:
 
 The result is a deterministic JSON index that can be searched from the CLI or used through the library API.
 
+When an agent needs to extend your suite:
+
+```mermaid
+flowchart LR
+    A[You ask for a Playwright change] --> B[Scout maps the suite]
+    B --> C[Agent searches context and existing code]
+    C --> D[Agent reuses helpers, fixtures, and page objects]
+    D --> E[Smaller, more consistent test change]
+```
+
 ## Using the library
 
 ```ts
