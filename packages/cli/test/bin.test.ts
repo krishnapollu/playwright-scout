@@ -77,6 +77,13 @@ describe('CLI commands', () => {
     const showOutput = capture();
     expect(await main(['node', 'scout', 'show', 'LoginPage.login', '--root', root], showOutput.writers)).toBe(0);
     expect(showOutput.output.stdout).toContain('LoginPage.login(user: string, pass: string)');
+
+    const contextOutput = capture();
+    expect(await main(['node', 'scout', 'context', 'coupon', '--root', root, '--json'], contextOutput.writers)).toBe(0);
+    expect(JSON.parse(contextOutput.output.stdout)).toMatchObject({
+      query: 'coupon',
+      relatedSpecs: ['tests/checkout.spec.ts'],
+    });
   });
 
   it('returns the documented usage, missing-index, no-tests, and not-found codes', async () => {

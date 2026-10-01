@@ -18,6 +18,14 @@ playwright-scout find <query...> [--kind helper|method|test|fixture|any] [--limi
 
 Searches helpers, class methods, tests, and fixtures. Text mode prints ranked lines; `--json` prints result objects. No matches is a successful command with a message.
 
+## `context`
+
+```sh
+playwright-scout context <query...> [--limit <n>] [--root <dir>] [--json]
+```
+
+Combines ranked search matches with related specs, helpers, fixtures, and routes for an agent task.
+
 ## `show`
 
 ```sh
@@ -25,6 +33,22 @@ playwright-scout show <id-or-label> [--root <dir>] [--json]
 ```
 
 Shows an exact ID, a unique suffix after `#` or `::`, or a whole label. Ambiguous and missing entries return exit code 5.
+
+## `impact`
+
+```sh
+playwright-scout impact <id-or-label> [--root <dir>] [--json]
+```
+
+Shows indexed tests and helpers related to a helper or method. Missing or ambiguous entries return exit code 5.
+
+## `plan`
+
+```sh
+playwright-scout plan <query...> [--limit <n>] [--root <dir>] [--json]
+```
+
+Builds a deterministic, evidence-based reuse plan from matching indexed code and its relationships.
 
 ## `install-skill`
 

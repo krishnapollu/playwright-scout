@@ -15,17 +15,23 @@ Any time you are about to create or modify: a Playwright test, a page object, a 
    `npx playwright-scout map --if-stale --quiet`
 2. Search 2-3 times using different words (actions and page names, e.g. "login", "checkout coupon", "create user api"):
    `npx playwright-scout find <words>`
-3. For each promising result, inspect it:
+3. For a task that needs broader context, ask Scout for an evidence-based plan:
+   `npx playwright-scout plan "<task description>"`
+4. For each promising result, inspect it:
    `npx playwright-scout show <id-or-label>`
-4. Decide:
+5. If changing an existing helper or page object, check its indexed impact:
+   `npx playwright-scout impact <id-or-label>`
+6. Decide:
    - A helper/page object/fixture already does it → **reuse it**. Import it; do not re-implement.
    - Nothing fits → create a new one in the directory shown on the `helper dirs:` line printed by `map`, following the naming and style of the neighbouring files.
-5. After adding or changing exported helpers, re-run `npx playwright-scout map`.
-6. Confirm your agent tool currently uses the directory where `install-skill` placed this file; agent skill paths can change.
+7. After adding or changing exported helpers, re-run `npx playwright-scout map`.
+8. Confirm your agent tool currently uses the directory where `install-skill` placed this file; agent skill paths can change.
 
 ## Rules
 - Never read or edit `.scout/index.json` directly; it is large. Use `find` and `show`.
 - If `find` returned a relevant match and you did not use it, say why in one sentence in your final message.
+- `context` combines search matches with related specs, helpers, fixtures, and routes when you need a compact task-oriented view.
+- Use `--json` with `context`, `impact`, or `plan` when structured output is easier for the agent to consume.
 - The index is static analysis: fixture parameters are not linked to their classes, and CommonJS files are not indexed. If something seems missing, search the code normally.
 - Do not commit `.scout/`.
 

@@ -9,3 +9,6 @@ export * from './resolve.js';
 export * from './build.js';
 export * from './search.js';
 export * from './show.js';
+export * from './context.js';
+export * from './impact.js';
+export * from './plan.js';

@@ -63,6 +63,16 @@ npx playwright-scout find login --kind helper --limit 5
 
 Search results include the matching item, source location, and a short summary.
 
+### `context`
+
+Build a compact, task-oriented view from the index.
+
+```bash
+npx playwright-scout context "authenticated checkout"
+```
+
+This combines search matches with related specs, helpers, fixtures, and routes.
+
 ### `show`
 
 Display the details of a result by its ID or a readable label.
@@ -70,6 +80,22 @@ Display the details of a result by its ID or a readable label.
 ```bash
 npx playwright-scout show LoginPage.login
 npx playwright-scout show helper:pages/login.page.ts#LoginPage --json
+```
+
+### `impact`
+
+See which indexed tests and helpers may be affected by a helper or page-object change.
+
+```bash
+npx playwright-scout impact CheckoutPage.applyCoupon
+```
+
+### `plan`
+
+Create an evidence-based reuse plan for an agent task.
+
+```bash
+npx playwright-scout plan "add checkout coupon coverage"
 ```
 
 ### `install-skill`
@@ -100,7 +126,7 @@ const index = await buildIndex({ root: '/path/to/your/project' });
 const matches = searchIndex(index, 'login coupon', { kind: 'any', limit: 10 });
 ```
 
-See the [schema reference](docs/SCHEMA.md) for the index format and the [CLI reference](docs/CLI.md) for all options.
+All query commands support `--json` for structured agent output. See the [schema reference](docs/SCHEMA.md) for the index format and the [CLI reference](docs/CLI.md) for all options.
 
 ## Scope and limitations
 

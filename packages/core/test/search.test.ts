@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
-import { buildIndex, searchIndex, tokenize } from '../src/index.js';
+import { buildContext, buildIndex, searchIndex, tokenize } from '../src/index.js';
 import type { Index } from '../src/index.js';
 
 const ROOT = fileURLToPath(new URL('../../../fixtures/sample-suite', import.meta.url));
@@ -28,5 +28,15 @@ describe('searchIndex', () => {
 
   it('filters candidates before scoring', () => {
     expect(searchIndex(index, 'coupon', { kind: 'method' }).every((result) => result.kind === 'method')).toBe(true);
+  });
+});
+
+describe('buildContext', () => {
+  it('expands a search result into related suite evidence', () => {
+    const context = buildContext(index, 'coupon');
+    expect(context.matches[0]?.id).toBe('helper:pages/checkout.page.ts#CheckoutPage.applyCoupon');
+    expect(context.relatedSpecs).toContain('tests/checkout.spec.ts');
+    expect(context.relatedHelpers).toContain('helper:pages/checkout.page.ts#CheckoutPage');
+    expect(context.routes).toContain('/checkout');
   });
 });

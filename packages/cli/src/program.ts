@@ -3,6 +3,9 @@ import { mapCommand } from './commands/map.js';
 import { findCommand } from './commands/find.js';
 import { showCommand } from './commands/show.js';
 import { installSkillCommand } from './commands/installSkill.js';
+import { contextCommand } from './commands/context.js';
+import { impactCommand } from './commands/impact.js';
+import { planCommand } from './commands/plan.js';
 import { readIndex, ScoutError } from 'playwright-scout-core';
 import { formatFindResults, formatShowEntry } from './format.js';
 
@@ -108,6 +111,74 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
       }
       const output = options.json ? JSON.stringify(result.entry) : formatShowEntry(index, result.entry);
       writers.stdout(`${output}\n`);
+    });
+
+  program
+    .command('context <query...>')
+    .description('build a compact suite context for an agent')
+    .option('--root <dir>', 'root directory', process.cwd())
+    .option('--limit <limit>', 'number of search matches', (value: string) => {
+      const limit = Number(value);
+      if (!Number.isInteger(limit) || limit < 1) throw new InvalidArgumentError('limit must be a positive integer');
+      return limit;
+    }, 8)
+    .option('--json')
+    .action(async (queryParts: string[], options) => {
+      const index = await readIndex(options.root ?? process.cwd());
+      const result = contextCommand(index, queryParts.join(' '), options.limit ?? 8);
+      if (options.json) {
+        writers.stdout(`${JSON.stringify(result)}\n`);
+        return;
+      }
+      const lines = [`query: ${result.query}`, 'matches:'];
+      for (const match of result.matches) lines.push(`- ${match.kind} ${match.label} — ${match.file}:${match.line}`);
+      if (result.relatedSpecs.length > 0) lines.push(`specs: ${result.relatedSpecs.join(', ')}`);
+      if (result.relatedHelpers.length > 0) lines.push(`helpers: ${result.relatedHelpers.join(', ')}`);
+      if (result.fixtures.length > 0) lines.push(`fixtures: ${result.fixtures.join(', ')}`);
+      if (result.routes.length > 0) lines.push(`routes: ${result.routes.join(', ')}`);
+      writers.stdout(`${lines.join('\n')}\n`);
+    });
+
+  program
+    .command('impact <id>')
+    .description('show indexed tests and helpers affected by an entry')
+    .option('--root <dir>', 'root directory', process.cwd())
+    .option('--json')
+    .action(async (id: string, options) => {
+      const index = await readIndex(options.root ?? process.cwd());
+      const result = impactCommand(index, id);
+      if (result.status === 'not_found') throw new ScoutError('NOT_FOUND', `not found: ${id}`);
+      if (result.status === 'ambiguous') throw new ScoutError('AMBIGUOUS', `ambiguous: ${id}`);
+      if (options.json) {
+        writers.stdout(`${JSON.stringify(result)}\n`);
+        return;
+      }
+      writers.stdout(`${[
+        `entry: ${result.helper ?? result.entry?.id ?? id}`,
+        `specs: ${result.directSpecs.join(', ') || 'none'}`,
+        `tests: ${result.tests.join(', ') || 'none'}`,
+        `related helpers: ${result.relatedHelpers.join(', ') || 'none'}`,
+      ].join('\n')}\n`);
+    });
+
+  program
+    .command('plan <query...>')
+    .description('build an evidence-based reuse plan for an agent task')
+    .option('--root <dir>', 'root directory', process.cwd())
+    .option('--limit <limit>', 'number of search matches', (value: string) => {
+      const limit = Number(value);
+      if (!Number.isInteger(limit) || limit < 1) throw new InvalidArgumentError('limit must be a positive integer');
+      return limit;
+    }, 8)
+    .option('--json')
+    .action(async (queryParts: string[], options) => {
+      const index = await readIndex(options.root ?? process.cwd());
+      const result = planCommand(index, queryParts.join(' '), options.limit ?? 8);
+      if (options.json) {
+        writers.stdout(`${JSON.stringify(result)}\n`);
+        return;
+      }
+      writers.stdout(`${[`task: ${result.query}`, 'recommendations:', ...result.recommendations.map((item) => `- ${item}`)].join('\n')}\n`);
     });
 
   program
