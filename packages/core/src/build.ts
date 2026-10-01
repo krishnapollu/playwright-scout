@@ -4,7 +4,7 @@ import { readConfig, readTsAliasConfig } from './config.js';
 import { detectLanguage, discoverFiles } from './discover.js';
 import { parseFile, getParseErrors } from './parse.js';
 import { linkFiles } from './link.js';
-import { IndexSchema, type Index, type Diagnostic } from './schema.js';
+import { IndexSchema, SCHEMA_VERSION, type Index, type Diagnostic } from './schema.js';
 import { extractFacts, type FileFacts } from './facts.js';
 import { resolveSpecifier } from './resolve.js';
 
@@ -129,8 +129,8 @@ export async function buildIndex(options: BuildIndexOptions): Promise<Index> {
   };
 
   const index: Index = {
-    schemaVersion: 1,
-    generator: { name: 'playwright-scout-core', version: '0.1.0' },
+    schemaVersion: SCHEMA_VERSION,
+    generator: { name: 'playwright-scout-core', version: '0.2.0' },
     generatedAt: options.deterministic ? null : new Date().toISOString(),
     project,
     stats: { ...linked.stats, filesSkipped: discover.filesSkipped },

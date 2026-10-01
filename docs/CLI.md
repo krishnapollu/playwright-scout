@@ -8,7 +8,7 @@ All commands accept `--root <dir>` where supported; it defaults to the current d
 playwright-scout map [--root <dir>] [--out <file>] [--include <glob...>] [--no-timestamp] [--if-stale] [--json] [--verbose] [--quiet]
 ```
 
-Builds `.scout/index.json` by default and creates `.scout/.gitignore` if absent. `--out` selects a different index file. `--include` adds root-relative support globs. `--no-timestamp` sets `generatedAt` to `null`; `--if-stale` skips a valid index newer than project source files. `--json` returns the summary object, `--verbose` writes diagnostics to stderr, and `--quiet` suppresses successful summary output.
+Builds `.scout/index.json` by default and creates `.scout/.gitignore` if absent. `--out` selects a different index file. `--include` adds root-relative support globs. `--no-timestamp` sets `generatedAt` to `null`; `--if-stale` skips a valid v2 index newer than project source files and rebuilds a v1 index. `--json` returns the summary object, `--verbose` writes diagnostics to stderr, and `--quiet` suppresses successful summary output.
 
 ## `find`
 

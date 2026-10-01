@@ -68,8 +68,9 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
       helperByDeclaration.set(`${detail.file}#${detail.name}`, entry);
     }
     for (const fixture of facts.fixtureDefs) {
+      const duplicateNames = facts.fixtureDefs.filter((candidate) => candidate.name === fixture.name).length > 1;
       fixtures.push({
-        id: fixture.id,
+        id: duplicateNames ? `fixture:${fixture.file}#${fixture.testObject ?? 'unknown'}.${fixture.name}` : fixture.id,
         name: fixture.name,
         file: fixture.file,
         line: fixture.line,
@@ -78,6 +79,7 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
         option: fixture.option,
         dependsOn: fixture.dependsOn,
         testObject: fixture.testObject,
+        providesHelperIds: [],
       });
     }
   }
@@ -126,6 +128,37 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
     namespaceBindings.set(file, namespaces);
   }
 
+  for (const fixture of fixtures) {
+    const definition = factsByFile.get(fixture.file)?.fixtureDefs.find((candidate) => candidate.name === fixture.name && candidate.testObject === fixture.testObject);
+    const provider = definition?.provider;
+    if (!provider) continue;
+    const helper = importBindings.get(fixture.file)?.get(provider.name)
+      ?? helperByDeclaration.get(`${fixture.file}#${provider.name}`);
+    if (helper?.kind === provider.kind) fixture.providesHelperIds = [helper.id];
+  }
+
+  const fixtureForTest = (file: string, binding: string | null, name: string): FixtureEntry | undefined => {
+    if (!binding) return undefined;
+    const facts = factsByFile.get(file);
+    if (!facts) return undefined;
+    let ownerFile = file;
+    let ownerName = binding;
+    const imported = facts.imports.find((item) => item.local === binding && !item.typeOnly);
+    if (imported) {
+      const target = resolveLocal(file, imported.specifier);
+      const resolved = target && imported.kind !== 'namespace'
+        ? resolveExportFromFacts(factsByFile, resolveLocal, target, imported.imported ?? 'default')
+        : null;
+      if (!resolved?.localName) return undefined;
+      ownerFile = resolved.file;
+      ownerName = resolved.localName;
+    } else if (!facts.testObjectExports.has(binding)) {
+      return undefined;
+    }
+    const candidates = fixtures.filter((fixture) => fixture.file === ownerFile && fixture.testObject === ownerName && fixture.name === name);
+    return candidates.length === 1 ? candidates[0] : undefined;
+  };
+
   for (const file of files) {
     const facts = factsByFile.get(file);
     if (!facts) continue;
@@ -163,7 +196,27 @@ export function linkFiles(files: string[], factsByFile: Map<string, FileFacts>, 
             }
           }
         }
+        for (const name of test.fixtures) {
+          const fixture = fixtureForTest(file, test.testBinding, name);
+          if (fixture?.providesHelperIds.length !== 1) continue;
+          const helper = helpers.find((entry) => entry.id === fixture.providesHelperIds[0]);
+          if (!helper) continue;
+          calls.add(helper.id);
+          if (helper.kind !== 'class') continue;
+          for (const access of test.memberCalls) {
+            if (access.variable !== name) continue;
+            const method = helper.methods.find((entry) => entry.name === access.method);
+            if (method) calls.add(method.id);
+          }
+        }
         test.calls = [...calls].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+        for (const id of test.calls) {
+          const helper = helpers.find((entry) => entry.id === id || entry.methods.some((method) => method.id === id));
+          if (!helper || helper.file === file) continue;
+          const referrers = referenceFiles.get(helper.id) ?? new Set<string>();
+          referrers.add(file);
+          referenceFiles.set(helper.id, referrers);
+        }
         tests.push({
           id: test.id,
           file: test.file,

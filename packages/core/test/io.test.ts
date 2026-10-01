@@ -19,7 +19,7 @@ describe('io', () => {
 
   it('valid minimal index round-trips byte-identically', async () => {
     const minimalIndex: Index = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       generator: { name: 'playwright-scout-core', version: '1.0.0' },
       generatedAt: '2023-01-01T00:00:00.000Z',
       project: {
@@ -74,9 +74,9 @@ describe('io', () => {
     );
   });
 
-  it('schemaVersion: 2 throws INDEX_SCHEMA_MISMATCH', async () => {
+  it('schemaVersion: 1 throws INDEX_SCHEMA_MISMATCH', async () => {
     await fs.mkdir(path.join(tmpDir, '.scout'));
-    await fs.writeFile(path.join(tmpDir, '.scout', 'index.json'), JSON.stringify({ schemaVersion: 2 }));
+    await fs.writeFile(path.join(tmpDir, '.scout', 'index.json'), JSON.stringify({ schemaVersion: 1 }));
     
     await expect(readIndex(tmpDir)).rejects.toThrowError(
       new ScoutError('INDEX_SCHEMA_MISMATCH')

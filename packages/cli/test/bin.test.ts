@@ -51,6 +51,13 @@ describe('CLI commands', () => {
     expect(await main(['node', 'scout', 'map', '--root', root, '--if-stale'], second.writers)).toBe(0);
     expect(second.output.stdout).toContain('scout: index is up to date');
 
+    const oldIndex = JSON.parse(await fs.readFile(path.join(root, '.scout/index.json'), 'utf8')) as Record<string, unknown>;
+    oldIndex.schemaVersion = 1;
+    await fs.writeFile(path.join(root, '.scout/index.json'), JSON.stringify(oldIndex));
+    const migrated = capture();
+    expect(await main(['node', 'scout', 'map', '--root', root, '--if-stale'], migrated.writers)).toBe(0);
+    expect(migrated.output.stdout).toContain('schema v2');
+
     const barrel = path.join(root, 'pages/index.ts');
     const future = new Date(Date.now() + 2000);
     await fs.utimes(barrel, future, future);

@@ -77,7 +77,11 @@ describe('specs and tests', () => {
     const t = testByTitle('logs in with valid credentials @smoke');
     expect(t.tags).toEqual(['@auth', '@smoke']);
     expect(t.fixtures).toEqual(['loginPage', 'page']);
-    expect(t.calls).toEqual(['helper:utils/data.ts#USERS']);
+    expect(t.calls).toEqual([
+      'helper:pages/login.page.ts#LoginPage',
+      'helper:pages/login.page.ts#LoginPage.login',
+      'helper:utils/data.ts#USERS',
+    ]);
     expect(t.modifiers).toEqual([]);
     expect(t.suitePath).toEqual(['Login']);
   });
@@ -186,6 +190,8 @@ describe('fixtures', () => {
     const byName = Object.fromEntries(index.fixtures.map((f) => [f.name, f]));
     expect(Object.keys(byName).sort()).toEqual(['adminToken', 'checkoutPage', 'loginPage']);
     expect(byName['loginPage']).toMatchObject({ scope: 'test', auto: false, dependsOn: ['page'], testObject: 'test' });
+    expect(byName['loginPage']?.providesHelperIds).toEqual(['helper:pages/login.page.ts#LoginPage']);
+    expect(byName['checkoutPage']?.providesHelperIds).toEqual(['helper:pages/checkout.page.ts#CheckoutPage']);
     expect(byName['adminToken']).toMatchObject({ scope: 'worker', auto: true, dependsOn: [], testObject: 'test' });
   });
 });

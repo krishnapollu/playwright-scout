@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const DiagnosticCodeSchema = z.enum([
   'CONFIG_NOT_FOUND',
@@ -39,6 +39,7 @@ export const FixtureEntrySchema = z.object({
   option: z.boolean(),
   dependsOn: z.array(z.string()),
   testObject: z.string().nullable(),
+  providesHelperIds: z.array(z.string()),
 });
 export type FixtureEntry = z.infer<typeof FixtureEntrySchema>;
 
@@ -134,7 +135,7 @@ export const ProjectInfoSchema = z.object({
 export type ProjectInfo = z.infer<typeof ProjectInfoSchema>;
 
 export const IndexSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   generator: z.object({
     name: z.literal('playwright-scout-core'),
     version: z.string(),

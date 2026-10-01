@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { IndexSchema, type Index } from './schema.js';
+import { IndexSchema, SCHEMA_VERSION, type Index } from './schema.js';
 import { ScoutError } from './errors.js';
 
 export async function writeIndex(rootDir: string, index: Index): Promise<void> {
@@ -41,7 +41,7 @@ export async function readIndex(rootDir: string): Promise<Index> {
   }
 
   if (typeof parsed === 'object' && parsed !== null && 'schemaVersion' in parsed) {
-    if ((parsed as { schemaVersion: unknown }).schemaVersion !== 1) {
+    if ((parsed as { schemaVersion: unknown }).schemaVersion !== SCHEMA_VERSION) {
       throw new ScoutError('INDEX_SCHEMA_MISMATCH');
     }
   } else {

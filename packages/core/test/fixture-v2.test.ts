@@ -27,6 +27,21 @@ describe('v0.2 fixture syntax baseline', () => {
     });
   }
 
+  it('extracts only direct, unambiguous use providers', () => {
+    const providers = Object.entries(fixtureCases).map(([name, source]) => {
+      const file = `fixtures/${name}.ts`;
+      return [name, extractFacts(file, parseFile(file, source), false).fixtureDefs[0]?.provider];
+    });
+    expect(providers).toEqual([
+      ['direct', { name: 'LoginPage', kind: 'class' }],
+      ['barrel', { name: 'LoginPage', kind: 'class' }],
+      ['function', { name: 'makeAccount', kind: 'function' }],
+      ['options', { name: 'LoginPage', kind: 'class' }],
+      ['unresolved', { name: 'MissingPage', kind: 'class' }],
+      ['conditional', null],
+    ]);
+  });
+
   it('keeps same-name fixtures from different test objects distinct', () => {
     const file = 'fixtures/two.ts';
     const source = `export const admin = base.extend({ account: async ({}, use) => { await use(1); } });

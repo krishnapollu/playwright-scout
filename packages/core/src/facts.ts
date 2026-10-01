@@ -53,6 +53,7 @@ export interface FixtureDef {
   option: boolean;
   dependsOn: string[];
   testObject: string | null;
+  provider: { name: string; kind: 'class' | 'function' | 'constant' } | null;
 }
 
 export interface TestTreeRecord {
@@ -68,6 +69,7 @@ export interface TestTreeRecord {
   modifiers: Array<'fail' | 'fixme' | 'only' | 'skip' | 'slow'>;
   tags: string[];
   fixtures: string[];
+  testBinding: string | null;
   calls: string[];
   navigatesTo: string[];
   inLoop: boolean;
@@ -76,7 +78,27 @@ export interface TestTreeRecord {
   newExpressions: string[];
   instanceVariables: Array<{ variable: string; className: string }>;
   instanceMethodCalls: Array<{ variable: string; method: string }>;
+  memberCalls: Array<{ variable: string; method: string }>;
   gotos?: string[];
+}
+
+function fixtureProvider(node: ts.Expression): FixtureDef['provider'] {
+  const callback = ts.isArrayLiteralExpression(node) ? node.elements[0] : node;
+  if (!callback || (!ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback))) return null;
+  const use = callback.parameters[1]?.name;
+  if (!use || !ts.isIdentifier(use)) return null;
+  const expressions = ts.isBlock(callback.body)
+    ? callback.body.statements.filter(ts.isExpressionStatement).map((statement) => statement.expression)
+    : [callback.body];
+  const calls = expressions.map((expression) => ts.isAwaitExpression(expression) ? expression.expression : expression)
+    .filter((expression): expression is ts.CallExpression => ts.isCallExpression(expression) && ts.isIdentifier(expression.expression) && expression.expression.text === use.text);
+  if (calls.length !== 1) return null;
+  const value = calls[0]?.arguments[0];
+  if (!value) return null;
+  if (ts.isNewExpression(value) && ts.isIdentifier(value.expression)) return { name: value.expression.text, kind: 'class' };
+  if (ts.isCallExpression(value) && ts.isIdentifier(value.expression)) return { name: value.expression.text, kind: 'function' };
+  if (ts.isIdentifier(value)) return { name: value.text, kind: 'constant' };
+  return null;
 }
 
 export interface FileFacts {
@@ -227,12 +249,13 @@ function collectReferences(node: ts.Node, names: Set<string>, namespaceMembers: 
   visit(node);
 }
 
-function collectTestReferences(node: ts.Node): { names: string[]; namespaceMembers: Array<{ ns: string; member: string }>; newExpressions: string[]; instanceVariables: Array<{ variable: string; className: string }>; instanceMethodCalls: Array<{ variable: string; method: string }> } {
+function collectTestReferences(node: ts.Node): { names: string[]; namespaceMembers: Array<{ ns: string; member: string }>; newExpressions: string[]; instanceVariables: Array<{ variable: string; className: string }>; instanceMethodCalls: Array<{ variable: string; method: string }>; memberCalls: Array<{ variable: string; method: string }> } {
   const names = new Set<string>();
   const namespaceMembers: Array<{ ns: string; member: string }> = [];
   const newExpressions = new Set<string>();
   const instanceVariables: Array<{ variable: string; className: string }> = [];
   const instanceMethodCalls: Array<{ variable: string; method: string }> = [];
+  const memberCalls: Array<{ variable: string; method: string }> = [];
   const instances = new Map<string, string>();
 
   function visit(current: ts.Node): void {
@@ -246,6 +269,7 @@ function collectTestReferences(node: ts.Node): { names: string[]; namespaceMembe
     }
     if (ts.isCallExpression(current) && ts.isPropertyAccessExpression(current.expression) && ts.isIdentifier(current.expression.expression)) {
       const variable = current.expression.expression.text;
+      memberCalls.push({ variable, method: current.expression.name.text });
       if (instances.has(variable)) instanceMethodCalls.push({ variable, method: current.expression.name.text });
     }
     if (ts.isPropertyAccessExpression(current) && ts.isIdentifier(current.expression)) {
@@ -273,6 +297,7 @@ function collectTestReferences(node: ts.Node): { names: string[]; namespaceMembe
     newExpressions: [...newExpressions].sort((a, b) => a < b ? -1 : a > b ? 1 : 0),
     instanceVariables,
     instanceMethodCalls,
+    memberCalls,
   };
 }
 
@@ -439,6 +464,7 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
                 option: cfg.option,
                 dependsOn,
                 testObject: target,
+                provider: fixtureProvider(prop.initializer),
               });
             }
           }
@@ -536,8 +562,8 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
     for (const stmt of sourceFile.statements) {
       if (ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier)) {
         const mod = stmt.moduleSpecifier.text;
-        if (mod === '@playwright/test' && stmt.importClause && stmt.importClause.namedBindings) {
-          if (ts.isNamespaceImport(stmt.importClause.namedBindings)) {
+        if (stmt.importClause?.namedBindings) {
+          if (mod === '@playwright/test' && ts.isNamespaceImport(stmt.importClause.namedBindings)) {
             testBindings.add(stmt.importClause.namedBindings.name.text);
           }
           if (ts.isNamedImports(stmt.importClause.namedBindings)) {
@@ -690,7 +716,7 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
             const seen = testTree.filter((entry) => entry.id === baseId || entry.id.startsWith(`${baseId}#`)).length;
             const callbackGotos = callback ? collectGotoStrings(callback.body) : [];
             const callbackFacts = callback ? collectTestReferences(callback.body) : {
-              names: [], namespaceMembers: [], newExpressions: [], instanceVariables: [], instanceMethodCalls: [],
+              names: [], namespaceMembers: [], newExpressions: [], instanceVariables: [], instanceMethodCalls: [], memberCalls: [],
             };
             const testRecord: TestTreeRecord = {
               id: seen === 0 ? baseId : `${baseId}#${seen + 1}`,
@@ -705,6 +731,7 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
               modifiers: [],
               tags: uniqueSorted(mergedTags),
               fixtures: [...new Set(fixtureNames)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+              testBinding: baseName,
               calls: [],
               navigatesTo: callbackGotos,
               inLoop,
@@ -713,6 +740,7 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
               newExpressions: callbackFacts.newExpressions,
               instanceVariables: callbackFacts.instanceVariables,
               instanceMethodCalls: callbackFacts.instanceMethodCalls,
+              memberCalls: callbackFacts.memberCalls,
               gotos: callbackGotos,
             };
 
