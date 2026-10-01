@@ -53,7 +53,7 @@ async function collectSourceFiles(root: string, currentDir = root, files: string
   return files;
 }
 
-async function isUpToDate(root: string, indexPath: string): Promise<boolean> {
+export async function isUpToDate(root: string, indexPath: string): Promise<boolean> {
   let indexMtime: number;
   try {
     const text = await fs.readFile(indexPath, 'utf8');
@@ -64,6 +64,7 @@ async function isUpToDate(root: string, indexPath: string): Promise<boolean> {
     return false;
   }
   const sources = await collectSourceFiles(root);
+  for (const config of ['tsconfig.json', 'jsconfig.json']) sources.push(path.join(root, config));
   for (const source of sources) {
     const stat = await fs.stat(source).catch(() => null);
     if (stat && stat.mtimeMs >= indexMtime) return false;

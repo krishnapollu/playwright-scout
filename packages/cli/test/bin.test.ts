@@ -89,8 +89,32 @@ describe('CLI commands', () => {
     expect(await main(['node', 'scout', 'context', 'coupon', '--root', root, '--json'], contextOutput.writers)).toBe(0);
     expect(JSON.parse(contextOutput.output.stdout)).toMatchObject({
       query: 'coupon',
-      relatedSpecs: ['tests/checkout.spec.ts'],
+      staleIndex: false,
+      analogousTest: { file: 'tests/checkout.spec.ts' },
     });
+  });
+
+  it('bounds context output and warns when a new source or config file makes the index stale', async () => {
+    const root = await sampleRoot();
+    expect(await main(['node', 'scout', 'map', '--root', root], capture().writers)).toBe(0);
+    const current = capture();
+    expect(await main(['node', 'scout', 'context', 'coupon', '--root', root, '--max-chars', '650', '--json'], current.writers)).toBe(0);
+    expect(current.output.stdout.length).toBeLessThanOrEqual(650);
+    expect(JSON.parse(current.output.stdout).staleIndex).toBe(false);
+
+    await fs.writeFile(path.join(root, 'new-helper.ts'), 'export const added = 1;');
+    const stale = capture();
+    expect(await main(['node', 'scout', 'context', 'coupon', '--root', root, '--json'], stale.writers)).toBe(0);
+    expect(JSON.parse(stale.output.stdout).staleIndex).toBe(true);
+
+    expect(await main(['node', 'scout', 'map', '--root', root], capture().writers)).toBe(0);
+    await fs.writeFile(path.join(root, 'tsconfig.json'), '{"compilerOptions":{}}');
+    const configStale = capture();
+    expect(await main(['node', 'scout', 'context', 'coupon', '--root', root, '--json'], configStale.writers)).toBe(0);
+    expect(JSON.parse(configStale.output.stdout).staleIndex).toBe(true);
+
+    const invalid = capture();
+    expect(await main(['node', 'scout', 'context', 'coupon', '--root', root, '--max-chars', '499'], invalid.writers)).toBe(2);
   });
 
   it('returns the documented usage, missing-index, no-tests, and not-found codes', async () => {

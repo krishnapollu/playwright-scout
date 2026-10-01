@@ -21,10 +21,10 @@ Searches helpers, class methods, tests, and fixtures. Text mode prints ranked li
 ## `context`
 
 ```sh
-playwright-scout context <query...> [--limit <n>] [--root <dir>] [--json]
+playwright-scout context <task...> [--limit <n>] [--max-chars <n>] [--root <dir>] [--json]
 ```
 
-Combines ranked search matches with related specs, helpers, fixtures, and routes for an agent task.
+Returns a task brief with source-backed reuse candidates, one similar test when found, setup/data references, observed patterns, and unknowns. The default `--max-chars` is 6000 (minimum 500), including the final newline and JSON syntax. This is a character bound, not a model-specific token count. Omitted items are counted. A stale index is flagged but not rewritten; run `map --if-stale` first. Findings are advisory and do not establish business coverage gaps.
 
 ## `show`
 

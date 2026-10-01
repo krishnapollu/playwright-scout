@@ -1,5 +1,6 @@
 import { Command, CommanderError, InvalidArgumentError, Option } from 'commander';
-import { mapCommand } from './commands/map.js';
+import path from 'node:path';
+import { isUpToDate, mapCommand } from './commands/map.js';
 import { findCommand } from './commands/find.js';
 import { showCommand } from './commands/show.js';
 import { installSkillCommand } from './commands/installSkill.js';
@@ -122,21 +123,21 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
       if (!Number.isInteger(limit) || limit < 1) throw new InvalidArgumentError('limit must be a positive integer');
       return limit;
     }, 8)
+    .option('--max-chars <n>', 'complete output character limit', (value: string) => {
+      const limit = Number(value);
+      if (!Number.isInteger(limit) || limit < 500) throw new InvalidArgumentError('max-chars must be an integer of at least 500');
+      return limit;
+    }, 6000)
     .option('--json')
     .action(async (queryParts: string[], options) => {
-      const index = await readIndex(options.root ?? process.cwd());
-      const result = contextCommand(index, queryParts.join(' '), options.limit ?? 8);
-      if (options.json) {
-        writers.stdout(`${JSON.stringify(result)}\n`);
-        return;
-      }
-      const lines = [`query: ${result.query}`, 'matches:'];
-      for (const match of result.matches) lines.push(`- ${match.kind} ${match.label} — ${match.file}:${match.line}`);
-      if (result.relatedSpecs.length > 0) lines.push(`specs: ${result.relatedSpecs.join(', ')}`);
-      if (result.relatedHelpers.length > 0) lines.push(`helpers: ${result.relatedHelpers.join(', ')}`);
-      if (result.fixtures.length > 0) lines.push(`fixtures: ${result.fixtures.join(', ')}`);
-      if (result.routes.length > 0) lines.push(`routes: ${result.routes.join(', ')}`);
-      writers.stdout(`${lines.join('\n')}\n`);
+      const root = options.root ?? process.cwd();
+      const index = await readIndex(root);
+      const current = await isUpToDate(root, path.join(root, '.scout/index.json'));
+      const result = contextCommand(index, queryParts.join(' '), {
+        limit: options.limit, maxChars: options.maxChars, staleIndex: !current,
+        format: options.json ? 'json' : 'text',
+      });
+      writers.stdout(result.output);
     });
 
   program

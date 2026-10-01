@@ -52,6 +52,6 @@
 ## v0.2 suite context
 - [x] V0 Baseline and fixture cases — `npm run check` passes with 78 tests. Existing `context coupon --json` is 871 characters and lists the method, constant, test and class, but no fixture provider or evidence reasons. Existing `impact LoginPage.login --json` is 373 characters with no tests, despite the sample login test calling it through `loginPage`. Added seven fixture syntax baseline cases covering direct, barrel, function, options tuple, unresolved, conditional and same-name test objects. Implementation has not changed.
 - [x] V1 Fixture graph and index v2 — direct `use(new Class())` and `use(function())` providers link through imports and barrels; fixture method calls resolve only through the imported test object. Dynamic/unresolved providers stay unlinked, duplicate fixture names receive distinct IDs, and v1 indexes remap. `npm run check` passes with 80 tests.
-- [ ] V2 Bounded task context.
+- [x] V2 Bounded task context — CLI returns deterministic text/JSON briefs with source references, one similar test, setup/data, repeated local observations, unknowns and omission counts. `--max-chars` bounds the full output; new source/config files trigger a stale warning. Legacy core `buildContext` remains exported. `npm run check` passes with 85 tests.
 - [ ] V3 File impact.
 - [ ] V4 Agent skill, evaluation, docs and packaging.
