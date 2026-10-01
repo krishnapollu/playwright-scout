@@ -48,3 +48,6 @@
 ## Maintainer tooling
 - Added a human-run npm release script with PAT loading, authentication and version checks, package-content validation, confirmation, and core-first publishing. Its dry run passed with 71 tests; no package was published by the script during verification.
 - Prepared CLI 0.1.1 with a generated copy of the root README for npm. The release script now supports independent core and CLI versions; its dry run passed with 71 tests and both package contents verified.
+
+## v0.2 suite context
+- [ ] Draft specification for review: `docs/SPEC-v0.2.md`. Implementation cards V0–V4 have not started.
