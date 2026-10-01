@@ -1,6 +1,6 @@
 # playwright-scout v0.2 — Suite context (draft)
 
-Status: **draft for review**. This file defines proposed work; it does not describe shipped behavior. The v0.1 specification remains the baseline for existing commands and code rules. Where this file explicitly changes v0.1 behavior, this file takes precedence after approval.
+Status: **active implementation specification**. This file defines proposed v0.2 behavior; it does not describe shipped behavior. The v0.1 specification remains the baseline for existing commands and code rules. Where this file explicitly changes v0.1 behavior, this file takes precedence for v0.2 work.
 
 ## 1. Goal
 
@@ -68,6 +68,8 @@ Resolve imports through the existing alias and barrel resolver. For `new LoginPa
 When a test accesses a method through a fixture parameter, record a method call only if the fixture provider resolves to exactly one class helper with that public/protected method. For example, `loginPage.login()` links to `LoginPage.login` when `loginPage` has one proven provider. Preserve the existing `tests[].fixtures` names and direct `tests[].calls` behavior. Do not fabricate method calls for ambiguous providers or unrecognized member access.
 
 Keep derived arrays sorted and unique. Add focused tests for a direct constructor, a barrel import, a function provider, the options tuple, a method call through the fixture, an unresolved provider, and a same-name fixture from another test object. The sample suite's `loginPage` and `checkoutPage` fixtures are acceptance examples.
+
+If a file declares the same fixture name on multiple test objects, give each a distinct ID by including the test-object name. Preserve existing IDs for names unique within a file. Resolve test fixture usage through the imported test object; if ownership cannot be proven, leave method calls unlinked.
 
 ## 5. `context` task brief
 

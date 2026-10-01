@@ -50,4 +50,8 @@
 - Prepared CLI 0.1.1 with a generated copy of the root README for npm. The release script now supports independent core and CLI versions; its dry run passed with 71 tests and both package contents verified.
 
 ## v0.2 suite context
-- [ ] Draft specification for review: `docs/SPEC-v0.2.md`. Implementation cards V0–V4 have not started.
+- [x] V0 Baseline and fixture cases — `npm run check` passes with 78 tests. Existing `context coupon --json` is 871 characters and lists the method, constant, test and class, but no fixture provider or evidence reasons. Existing `impact LoginPage.login --json` is 373 characters with no tests, despite the sample login test calling it through `loginPage`. Added seven fixture syntax baseline cases covering direct, barrel, function, options tuple, unresolved, conditional and same-name test objects. Implementation has not changed.
+- [ ] V1 Fixture graph and index v2.
+- [ ] V2 Bounded task context.
+- [ ] V3 File impact.
+- [ ] V4 Agent skill, evaluation, docs and packaging.
