@@ -131,7 +131,7 @@ npm run release:publish -- --dry-run
 npm run release:publish
 ```
 
-The script checks the release, confirms the contents of both packages, and prompts before publishing core followed by the CLI. It skips a version that is already on npm, so you can rerun it if the second package fails. For prereleases, set matching versions in both packages and use `--tag next`.
+The script checks the release, confirms the contents of both packages, and prompts before publishing core followed by the CLI. It skips a version that is already on npm, so you can rerun it if the second package fails. Bump the package you are releasing; if core changes, update the CLI's core dependency too. For prereleases, use `--tag next`.
 
 ## License
 

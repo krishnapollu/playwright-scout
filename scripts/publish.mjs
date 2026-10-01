@@ -40,15 +40,10 @@ function readToken() {
 
 const core = readJson('packages/core/package.json');
 const cli = readJson('packages/cli/package.json');
-if (
-  core.version !== cli.version ||
-  cli.dependencies['playwright-scout-core'] !== `^${core.version}`
-) {
-  throw new Error(
-    'Core and CLI versions must match, and the CLI core dependency must use the same version.',
-  );
+if (cli.dependencies['playwright-scout-core'] !== `^${core.version}`) {
+  throw new Error('The CLI core dependency must match the core package version.');
 }
-if (core.version.includes('-') && tag === 'latest') {
+if ([core.version, cli.version].some((version) => version.includes('-')) && tag === 'latest') {
   throw new Error('Prerelease versions need an explicit tag, for example --tag next.');
 }
 
@@ -102,27 +97,33 @@ if (!yes) {
   if (!process.stdin.isTTY) throw new Error('Run interactively or pass --yes.');
   const input = createInterface({ input: process.stdin, output: process.stdout });
   const answer = await input.question(
-    `Publish ${core.version} under the "${tag}" tag? Type "publish" to continue: `,
+    `Publish ${core.name}@${core.version} and ${cli.name}@${cli.version} under the "${tag}" tag? Type "publish" to continue: `,
   );
   input.close();
   if (answer !== 'publish') process.exit(0);
 }
 
 let publishedCount = 0;
-for (const [workspace, name] of [
-  ['packages/core', core.name],
-  ['packages/cli', cli.name],
+for (const [workspace, pkg] of [
+  ['packages/core', core],
+  ['packages/cli', cli],
 ]) {
   const existing = npm(
-    ['view', `${name}@${core.version}`, 'version', `--registry=${registry}`, '--fetch-retries=0'],
+    [
+      'view',
+      `${pkg.name}@${pkg.version}`,
+      'version',
+      `--registry=${registry}`,
+      '--fetch-retries=0',
+    ],
     { capture: true, auth: true },
   );
   if (existing.status === 0) {
-    console.log(`Already published: ${name}@${core.version}; skipping.`);
+    console.log(`Already published: ${pkg.name}@${pkg.version}; skipping.`);
     continue;
   }
   if (!existing.stderr.includes('E404'))
-    throw new Error(`Could not check ${name} on npm: ${existing.stderr.trim()}`);
+    throw new Error(`Could not check ${pkg.name} on npm: ${existing.stderr.trim()}`);
   const published = npm(
     [
       'publish',
@@ -142,6 +143,6 @@ for (const [workspace, name] of [
 
 console.log(
   publishedCount === 0
-    ? `Both packages are already published at ${core.version}.`
-    : `Published ${publishedCount} package(s) at ${core.version} under the "${tag}" tag.`,
+    ? 'Both package versions are already published.'
+    : `Published ${publishedCount} package(s) under the "${tag}" tag.`,
 );

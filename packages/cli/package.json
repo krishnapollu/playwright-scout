@@ -1,6 +1,6 @@
 {
   "name": "playwright-scout",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -8,16 +8,32 @@
     "url": "git+https://github.com/krishnapollu/playwright-scout.git",
     "directory": "packages/cli"
   },
-  "engines": { "node": ">=20" },
-  "keywords": ["playwright", "testing", "agent-skill", "ai", "test-automation"],
-  "publishConfig": { "access": "public" },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "playwright",
+    "testing",
+    "agent-skill",
+    "ai",
+    "test-automation"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "playwright-scout": "dist/bin.js",
     "scout": "dist/bin.js"
   },
-  "files": ["dist", "skills", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "build": "node scripts/copy-skill.mjs"
+    "build": "node scripts/copy-skill.mjs && node scripts/sync-readme.mjs",
+    "prepack": "node scripts/sync-readme.mjs"
   },
   "dependencies": {
     "commander": "^12.0.0",
