@@ -52,7 +52,14 @@ Scout writes the index to `.scout/index.json`. Add `.scout/` to your repository�
 | `plan`          | Create an evidence-based reuse plan for an agent task.                | `npx playwright-scout plan "add checkout coupon coverage"` |
 | `install-skill` | Install the agent instructions for a supported coding assistant.      | `npx playwright-scout install-skill`                       |
 
-Most query commands support `--json` for structured output. Use `--root <dir>` for another project, `--if-stale` with `map` to skip a current index, and `--target claude\|agents\|github\|cursor\|all` with `install-skill` to choose the destination. See the [CLI reference](docs/CLI.md) for all options.
+### Common options
+
+- `--json` — return structured output for agents and scripts.
+- `--root <dir>` — run Scout against a different project directory.
+- `--if-stale` — with `map`, rebuild the index only when the source has changed.
+- `--target <agent>` — with `install-skill`, choose `claude`, `agents`, `github`, `cursor`, or `all`.
+
+See the [CLI reference](docs/CLI.md) for all options.
 
 By default, the skill is installed inside the current project:
 
