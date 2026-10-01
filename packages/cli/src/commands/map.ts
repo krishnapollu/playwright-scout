@@ -55,13 +55,23 @@ async function collectSourceFiles(root: string, currentDir = root, files: string
 
 export async function isUpToDate(root: string, indexPath: string): Promise<boolean> {
   let indexMtime: number;
+  let indexedFiles: string[];
   try {
     const text = await fs.readFile(indexPath, 'utf8');
     const parsed = IndexSchema.safeParse(JSON.parse(text));
     if (!parsed.success) return false;
+    indexedFiles = [...new Set([
+      ...parsed.data.specs.map((entry) => entry.file),
+      ...parsed.data.helpers.map((entry) => entry.file),
+      ...parsed.data.fixtures.map((entry) => entry.file),
+      ...(parsed.data.project.configFile ? [parsed.data.project.configFile] : []),
+    ])];
     indexMtime = (await fs.stat(indexPath)).mtimeMs;
   } catch {
     return false;
+  }
+  for (const file of indexedFiles) {
+    if (!(await fs.stat(path.join(root, file)).catch(() => null))) return false;
   }
   const sources = await collectSourceFiles(root);
   for (const config of ['tsconfig.json', 'jsconfig.json']) sources.push(path.join(root, config));

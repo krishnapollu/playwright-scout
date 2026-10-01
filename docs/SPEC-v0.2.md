@@ -1,6 +1,6 @@
 # playwright-scout v0.2 — Suite context (draft)
 
-Status: **active implementation specification**. This file defines proposed v0.2 behavior; it does not describe shipped behavior. The v0.1 specification remains the baseline for existing commands and code rules. Where this file explicitly changes v0.1 behavior, this file takes precedence for v0.2 work.
+Status: **implementation complete; unpublished**. This file defines v0.2 behavior. The v0.1 specification remains the baseline for earlier commands. Where this file explicitly changes v0.1 behavior, this file takes precedence for v0.2.
 
 ## 1. Goal
 
@@ -136,11 +136,11 @@ Before release, run `npm run check`, build and exercise the installed CLI on the
 
 Work one card at a time. For each implementation card, add focused tests, run `npm run check`, update `docs/PROGRESS.md`, and make one Conventional Commit. Do not mark a card complete until its acceptance checks pass.
 
-- [ ] **V0 — Baseline and fixtures.** Record the current check result and existing `context`/`impact` output. Add small fixture cases for supported and unsupported provider patterns. No production behavior change. Done when fixture expectations are explicit and the check is green.
-- [ ] **V1 — Fixture graph and index v2.** Implement section 4 and migration behavior. Done when direct and fixture-mediated method calls are correctly linked, ambiguity is left unlinked, v1 indexes produce remap guidance, and the full check is green.
-- [ ] **V2 — Bounded task context.** Implement section 5 in core and CLI. Done when text/JSON are deterministic, fit the declared character limit, cite sources, state omissions, expose freshness, and the full check is green.
-- [ ] **V3 — File impact.** Implement section 6. Done when file-path validation, direct and fixture-mediated reasons, empty-result wording, and the full check pass.
-- [ ] **V4 — Agent skill, evaluation, docs, packaging.** Complete sections 7–8. Done when real-suite evaluation results and limitations are recorded, installed skill and CLI docs match behavior, both packages pack cleanly, and the full check is green. Do not publish.
+- [x] **V0 — Baseline and fixtures.** Record the current check result and existing `context`/`impact` output. Add small fixture cases for supported and unsupported provider patterns. No production behavior change. Done when fixture expectations are explicit and the check is green.
+- [x] **V1 — Fixture graph and index v2.** Implement section 4 and migration behavior. Done when direct and fixture-mediated method calls are correctly linked, ambiguity is left unlinked, v1 indexes produce remap guidance, and the full check is green.
+- [x] **V2 — Bounded task context.** Implement section 5 in core and CLI. Done when text/JSON are deterministic, fit the declared character limit, cite sources, state omissions, expose freshness, and the full check is green.
+- [x] **V3 — File impact.** Implement section 6. Done when file-path validation, direct and fixture-mediated reasons, empty-result wording, and the full check pass.
+- [x] **V4 — Agent skill, evaluation, docs, packaging.** Complete sections 7–8. Done when real-suite evaluation results and limitations are recorded, installed skill and CLI docs match behavior, both packages pack cleanly, and the full check is green. Do not publish.
 
 ## 10. Decisions to validate during V0
 

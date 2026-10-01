@@ -1,40 +1,22 @@
 ---
 name: playwright-scout
-description: Use before writing or changing any Playwright test, page object, fixture, or test helper in this repo. Searches an index of existing helpers, page objects, fixtures and tests so you reuse what exists instead of creating duplicates.
+description: Use when creating or changing Playwright tests, page objects, fixtures, or test helpers in a project with Scout installed. Finds existing code and compact task context for reuse and change impact.
 ---
 
 # playwright-scout
 
-Find what already exists before you write test code.
+Understand the existing Playwright suite before changing its tests or support code.
 
-## When to use
-Any time you are about to create or modify: a Playwright test, a page object, a fixture, or a test helper/util.
+## Workflow
 
-## Steps
-1. Make sure the index is fresh (fast, safe to repeat):
-   `npx playwright-scout map --if-stale --quiet`
-2. Search 2-3 times using different words (actions and page names, e.g. "login", "checkout coupon", "create user api"):
-   `npx playwright-scout find <words>`
-3. For a task that needs broader context, ask Scout for an evidence-based plan:
-   `npx playwright-scout plan "<task description>"`
-4. For each promising result, inspect it:
-   `npx playwright-scout show <id-or-label>`
-5. If changing an existing helper or page object, check its indexed impact:
-   `npx playwright-scout impact <id-or-label>`
-6. Decide:
-   - A helper/page object/fixture already does it → **reuse it**. Import it; do not re-implement.
-   - Nothing fits → create a new one in the directory shown on the `helper dirs:` line printed by `map`, following the naming and style of the neighbouring files.
-7. After adding or changing exported helpers, re-run `npx playwright-scout map`.
-8. Confirm your agent tool currently uses the directory where `install-skill` placed this file; agent skill paths can change.
+Run these from the project root when the task involves Playwright code:
 
-## Rules
-- Never read or edit `.scout/index.json` directly; it is large. Use `find` and `show`.
-- If `find` returned a relevant match and you did not use it, say why in one sentence in your final message.
-- `context` combines search matches with related specs, helpers, fixtures, and routes when you need a compact task-oriented view.
-- Use `--json` with `context`, `impact`, or `plan` when structured output is easier for the agent to consume.
-- The index is static analysis: fixture parameters are not linked to their classes, and CommonJS files are not indexed. If something seems missing, search the code normally.
-- Do not commit `.scout/`.
+1. Refresh the static index: `npx playwright-scout map --if-stale --quiet`.
+2. Get a bounded task brief for broader work: `npx playwright-scout context "<task>" --max-chars 6000`. For a specific symbol, use `npx playwright-scout find <words>` and `npx playwright-scout show <id-or-label>`.
+3. Reuse a relevant helper, page object, or fixture when it fits the task. Inspect the referenced source before editing. If a relevant match is unsuitable, briefly explain why.
+4. When changing an existing helper or method, use `npx playwright-scout impact <id-or-label>`. For a source file, use `npx playwright-scout impact --file <root-relative-path>`. These show known static links; an empty list does not prove other tests are unaffected.
+5. After changing exported test support code, refresh with `npx playwright-scout map`.
 
-## Examples
-- Task "add a test for applying a coupon at checkout" → `find coupon checkout` → reuse `CheckoutPage.applyCoupon`.
-- Task "need a unique email for signup" → `find unique email` → reuse `uniqueEmail`.
+Scout's brief reports observed patterns and unknowns; it does not know business expectations unless the user supplies them. Some fixture shapes and dynamic calls are unlinked. If something seems missing, inspect the code directly. Do not read or edit `.scout/index.json` by hand or commit `.scout/`. Use `--json` when structured output helps. Confirm that your agent reads the directory where `install-skill` placed this file.
+
+Framework reviews are separate, opt-in work. Do not interrupt an ordinary test task to critique a working setup. Runtime failures and artifacts belong to the project's Playwright tools and Logbook, if installed.

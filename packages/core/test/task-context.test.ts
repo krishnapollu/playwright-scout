@@ -17,6 +17,13 @@ describe('task brief', () => {
     for (const item of brief.reuse) expect(item.line).toBeGreaterThan(0);
   });
 
+  it('describes a proven fixture provider without inventing an unresolved one', () => {
+    const brief = buildTaskBrief(index, 'loginPage');
+    expect(brief.reuse.find((item) => item.id === 'fixture:fixtures/index.ts#loginPage')?.summary).toContain('LoginPage');
+    expect(brief.reuse.some((item) => item.id.includes('CheckoutPage'))).toBe(false);
+    expect(brief.setupAndData.some((item) => item.id === 'fixture:fixtures/index.ts#loginPage')).toBe(false);
+  });
+
   it('renders complete, deterministic text and JSON within the declared size', () => {
     const brief = buildTaskBrief(index, 'coupon checkout', { staleIndex: true });
     for (const format of ['text', 'json'] as const) {
@@ -40,5 +47,6 @@ describe('task brief', () => {
   it('rejects impossible budgets', () => {
     expect(() => boundTaskBrief(buildTaskBrief(index, 'coupon'), 499, 'text')).toThrow();
     expect(() => boundTaskBrief(buildTaskBrief(index, 'coupon '.repeat(200)), 500, 'text')).toThrow();
+    expect(boundTaskBrief(buildTaskBrief(index, 'coupon'), 500, 'json').output.length).toBeLessThanOrEqual(500);
   });
 });

@@ -6,7 +6,7 @@
 [![npm](https://img.shields.io/npm/v/playwright-scout)](https://www.npmjs.com/package/playwright-scout)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-`playwright-scout` is an agent skill, static index, and search tool for Playwright projects. It helps coding agents understand existing page objects, helpers, fixtures, tests, tags, routes, and relationships before they change or extend a suite.
+`playwright-scout` is an agent skill, static index, and search tool for Playwright projects. It helps coding agents understand existing page objects, helpers, fixtures, tests, tags, routes, and relationships before they change or extend a suite. It can also provide a bounded, source-backed brief for a task.
 
 Scout reads your source code without running your tests or project code, giving agents a reliable map they can query before writing new code. That means new tests can build on what is already there instead of creating duplicates.
 
@@ -36,6 +36,10 @@ npx playwright-scout find checkout coupon
 
 # Inspect a specific result
 npx playwright-scout show LoginPage.login
+
+# Get a small task brief or inspect known static impact
+npx playwright-scout context "add expired coupon coverage" --max-chars 6000
+npx playwright-scout impact --file pages/checkout.page.ts
 ```
 
 Scout writes the index to `.scout/index.json`. Add `.scout/` to your repository’s `.gitignore`; the index can always be regenerated.
@@ -46,9 +50,9 @@ Scout writes the index to `.scout/index.json`. Add `.scout/` to your repository�
 | --------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
 | `map`           | Build or refresh the project index.                                   | `npx playwright-scout map`                                 |
 | `find`          | Search helpers, methods, tests, fixtures, and tags.                   | `npx playwright-scout find login`                          |
-| `context`       | Show matching code plus related specs, fixtures, helpers, and routes. | `npx playwright-scout context "authenticated checkout"`    |
+| `context`       | Give an agent a bounded task brief with reuse candidates and evidence. | `npx playwright-scout context "authenticated checkout"`    |
 | `show`          | Inspect a result by ID or readable label.                             | `npx playwright-scout show LoginPage.login`                |
-| `impact`        | See tests and helpers related to a helper or page-object change.      | `npx playwright-scout impact CheckoutPage.applyCoupon`     |
+| `impact`        | Show known static links for a symbol or source file.                   | `npx playwright-scout impact --file pages/checkout.page.ts` |
 | `plan`          | Create an evidence-based reuse plan for an agent task.                | `npx playwright-scout plan "add checkout coupon coverage"` |
 | `install-skill` | Install the agent instructions for a supported coding assistant.      | `npx playwright-scout install-skill --target claude`       |
 
@@ -57,6 +61,7 @@ Scout writes the index to `.scout/index.json`. Add `.scout/` to your repository�
 - `--json` — return structured output for agents and scripts.
 - `--root <dir>` — run Scout against a different project directory.
 - `--if-stale` — with `map`, rebuild the index only when the source has changed.
+- `--max-chars <n>` — with `context`, bound the complete response (default 6000 characters, not an exact model token count).
 - `--target <agent>` — with `install-skill`, choose `claude`, `agents`, `github`, `cursor`, or `all`.
 
 See the [CLI reference](docs/CLI.md) for all options.
@@ -77,9 +82,11 @@ Use `--global` with `--target claude` to install it at `~/.claude/skills/playwri
 Scout performs two static-analysis passes:
 
 1. It parses source files to identify tests, page objects, helpers, fixtures, tags, and navigation routes.
-2. It resolves local imports and exports to connect tests with the code they use.
+2. It resolves local imports, exports, and direct fixture providers to connect tests with the code they use.
 
 The result is a deterministic JSON index that can be searched from the CLI or used through the library API.
+
+`context` gives an agent a small brief for creation or maintenance work. `impact --file` reports tests linked by the static index and the reason for each link. These results are advisory: dynamic calls and unsupported fixture shapes can leave relationships unknown. Scout does not infer business coverage requirements from source code.
 
 When you ask an agent to extend your Playwright suite, the installed skill tells it to refresh the Scout index, search for relevant existing code, inspect promising matches, and reuse suitable helpers, fixtures, and page objects before creating anything new.
 
@@ -102,9 +109,10 @@ Scout is intentionally focused on static discovery. It does not:
 - make network or LLM calls;
 - support CommonJS-only projects (`require` / `module.exports`);
 - fully resolve dynamic test titles or navigation URLs;
+- resolve every fixture shape, indirect call, or runtime dependency;
 - analyze multiple Playwright configs in one run.
 
-For the complete behavior and supported patterns, see the [build specification](docs/SPEC.md).
+For the complete behavior and supported patterns, see the [v0.2 specification](docs/SPEC-v0.2.md) and [evaluation notes](docs/EVALUATION-v0.2.md). The [v0.1 specification](docs/SPEC.md) remains the baseline for earlier commands.
 
 ## Development
 

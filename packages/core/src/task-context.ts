@@ -46,9 +46,15 @@ function sameTest(test: TestEntry): TaskReference {
 export function buildTaskBrief(index: Index, query: string, options: TaskBriefOptions = {}): TaskBrief {
   const limit = options.limit ?? 8;
   const matches = searchIndex(index, query, { limit });
-  const reuse: TaskReference[] = matches.filter((match) => match.kind !== 'test').slice(0, 5).map((match) => ({
+  const methodOwnerIds = new Set(matches.filter((match) => match.kind === 'method').map((match) => match.id.slice(0, match.id.lastIndexOf('.'))));
+  const strongestReuse = Math.max(0, ...matches.filter((match) => match.kind !== 'test').map((match) => match.score));
+  const reuse: TaskReference[] = matches.filter((match) => match.kind !== 'test' && !methodOwnerIds.has(match.id)
+    && (match.kind !== 'class' || match.score >= strongestReuse * 0.35)).slice(0, 5).map((match) => ({
     id: match.id, label: match.label, file: match.file, line: match.line,
-    reason: 'query_match', summary: short(match.summary),
+    reason: 'query_match',
+    summary: short(match.kind === 'fixture'
+      ? index.fixtures.find((fixture) => fixture.id === match.id)?.providesHelperIds.map((id) => id.split('#').at(-1)).join(', ') ?? null
+      : match.summary),
   }));
   const matchIds = new Set(reuse.map((item) => item.id));
   const matchedTest = matches.find((match) => match.kind === 'test');
@@ -69,16 +75,12 @@ export function buildTaskBrief(index: Index, query: string, options: TaskBriefOp
         reason: 'fixture_provider', summary: fixture.providesHelperIds.length ? `Provides ${fixture.providesHelperIds.join(', ')}` : null });
     }
   }
-  for (const candidate of reuse) {
-    const helper = index.helpers.find((entry) => entry.id === candidate.id);
-    if (helper?.kind !== 'constant') continue;
-    setupAndData.push({ ...candidate });
-  }
-  const uniqueSetup = [...new Map(setupAndData.map((item) => [item.id, item])).values()]
+  const uniqueSetup = [...new Map(setupAndData.filter((item) => !matchIds.has(item.id)).map((item) => [item.id, item])).values()]
     .sort((a, b) => a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line);
   const observedPatterns: TaskPattern[] = [];
   if (analogue) {
     for (const name of analogue.fixtures) {
+      if (['page', 'request', 'context', 'browser', 'browserName'].includes(name)) continue;
       const examples = index.tests.filter((test) => test.fixtures.includes(name) && test.file === analogue.file).slice(0, 2);
       if (examples.length < 2) continue;
       observedPatterns.push({ observation: `Tests in ${analogue.file} use the ${name} fixture`,

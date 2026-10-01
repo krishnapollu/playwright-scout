@@ -11,3 +11,5 @@
 | 2026-10-01 | What is the first context size limit? | Default 6000 characters, minimum 500; evaluate it with real tasks in V4 | Deterministic and tokenizer-independent; no exact token-saving claim |
 | 2026-10-01 | How should duplicate fixture names be handled? | Distinct IDs for duplicate names per file, and link only through a proven imported test object | Prevents method links crossing between unrelated test objects |
 | 2026-10-01 | Can Scout and Logbook test IDs be joined directly? | No assumption; defer integration and test identity mapping | Scout uses static source-derived IDs, while Logbook stores runner test IDs |
+| 2026-10-01 | Can v0.2 claim token savings? | No; publish only measured output sizes and evidence checks | Four of five sample briefs are shorter, one is longer, and no controlled agent/model-token evaluation has been run |
+| 2026-10-01 | Should the skill invoke framework review advice? | No routine review step | Test creation and maintenance stay focused; framework advice requires an explicit future opt-in command |

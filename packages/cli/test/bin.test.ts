@@ -113,6 +113,12 @@ describe('CLI commands', () => {
     expect(await main(['node', 'scout', 'context', 'coupon', '--root', root, '--json'], configStale.writers)).toBe(0);
     expect(JSON.parse(configStale.output.stdout).staleIndex).toBe(true);
 
+    expect(await main(['node', 'scout', 'map', '--root', root], capture().writers)).toBe(0);
+    await fs.rm(path.join(root, 'utils/data.ts'));
+    const removed = capture();
+    expect(await main(['node', 'scout', 'context', 'coupon', '--root', root, '--json'], removed.writers)).toBe(0);
+    expect(JSON.parse(removed.output.stdout).staleIndex).toBe(true);
+
     const invalid = capture();
     expect(await main(['node', 'scout', 'context', 'coupon', '--root', root, '--max-chars', '499'], invalid.writers)).toBe(2);
   });
