@@ -46,6 +46,6 @@ Do not add subjective checks for POM shape, fixture architecture, retries, trace
 For each implementation milestone: focused tests, `npm run check`, progress update, and one Conventional Commit. Never publish automatically.
 
 - [x] **D0 — Contract and baselines.** Freeze command shape and limited rules above; capture representative fixtures, expected findings, non-findings, and unsupported cases. No production behavior change.
-- [ ] **D1 — Doctor.** Implement the static config-path check and deterministic text/JSON CLI output. Verify missing/dynamic config, literal existing/missing paths, and zero exit code for advice.
+- [x] **D1 — Doctor.** Implement the static config-path check and deterministic text/JSON CLI output. Verify missing/dynamic config, literal existing/missing paths, and zero exit code for advice.
 - [ ] **D2 — Review.** Implement safe file validation and the two conservative AST rules. Test true and false positives, path escape, output ordering, and no index requirement.
 - [ ] **D3 — Documentation and installed skill.** Update CLI/README/skill, verify the packaged skill copy and installed CLI, record limitations and an opt-in real-suite smoke check. Do not add a routine review step or claim agent-level gains.

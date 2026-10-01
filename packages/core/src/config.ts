@@ -15,6 +15,8 @@ const CONFIG_NAMES = [
 export interface ConfigResult {
   configFile: string | null;
   testDir: string;
+  testDirLine: number | null;
+  testDirLiteral: boolean;
   testMatch: string[] | null;
   playwrightProjects: string[];
   diagnostics: Diagnostic[];
@@ -47,8 +49,8 @@ function extractObjectLiteral(
   diag: Diagnostic[],
   relPath: string,
   sf: ts.SourceFile,
-): { testDir?: string; testMatch?: string[] | null; projects?: string[] } {
-  const result: { testDir?: string; testMatch?: string[] | null; projects?: string[] } = {};
+): { testDir?: string; testDirLine?: number; testDirLiteral?: boolean; testMatch?: string[] | null; projects?: string[] } {
+  const result: { testDir?: string; testDirLine?: number; testDirLiteral?: boolean; testMatch?: string[] | null; projects?: string[] } = {};
 
   for (const prop of obj.properties) {
     if (!ts.isPropertyAssignment(prop)) continue;
@@ -56,9 +58,11 @@ function extractObjectLiteral(
     if (!key) continue;
 
     if (key === 'testDir') {
+      result.testDirLine = sf.getLineAndCharacterOfPosition(prop.getStart(sf)).line + 1;
       const v = strLiteral(prop.initializer);
       if (v !== null) {
         result.testDir = v;
+        result.testDirLiteral = true;
       } else {
         const line = sf.getLineAndCharacterOfPosition(prop.initializer.getStart(sf)).line + 1;
         diag.push({ code: 'CONFIG_DYNAMIC', severity: 'info', message: 'testDir is dynamic', file: relPath, line });
@@ -153,7 +157,7 @@ export function readConfig(root: string): ConfigResult {
 
   if (!configFull) {
     diag.push({ code: 'CONFIG_NOT_FOUND', severity: 'info', message: 'No playwright config found', file: null, line: null });
-    return { configFile: null, testDir: '.', testMatch: null, playwrightProjects: [], diagnostics: diag };
+    return { configFile: null, testDir: '.', testDirLine: null, testDirLiteral: false, testMatch: null, playwrightProjects: [], diagnostics: diag };
   }
 
   const relPath = path.relative(root, configFull).split(path.sep).join('/');
@@ -162,7 +166,8 @@ export function readConfig(root: string): ConfigResult {
 
   const obj = findConfigObj(sf);
   if (!obj) {
-    return { configFile: relPath, testDir: '.', testMatch: null, playwrightProjects: [], diagnostics: diag };
+    diag.push({ code: 'CONFIG_DYNAMIC', severity: 'info', message: 'Config object could not be resolved statically', file: relPath, line: null });
+    return { configFile: relPath, testDir: '.', testDirLine: null, testDirLiteral: false, testMatch: null, playwrightProjects: [], diagnostics: diag };
   }
 
   const extracted = extractObjectLiteral(obj, diag, relPath, sf);
@@ -176,6 +181,8 @@ export function readConfig(root: string): ConfigResult {
   return {
     configFile: relPath,
     testDir,
+    testDirLine: extracted.testDirLine ?? null,
+    testDirLiteral: extracted.testDirLiteral ?? false,
     testMatch: extracted.testMatch ?? null,
     playwrightProjects: extracted.projects ?? [],
     diagnostics: diag,
@@ -205,4 +212,3 @@ export function readTsAliasConfig(root: string, testDir: string): TsAliasConfig 
   }
   return { baseUrl: undefined, paths: undefined, pathsBasePath: root };
 }
-

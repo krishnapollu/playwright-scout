@@ -37,6 +37,16 @@ function capture() {
 }
 
 describe('CLI commands', () => {
+  it('runs doctor without an index and treats findings as advisory', async () => {
+    const root = fileURLToPath(new URL('../../../fixtures/guidance-suite', import.meta.url));
+    const output = capture();
+    expect(await main(['node', 'scout', 'doctor', '--root', root, '--json'], output.writers)).toBe(0);
+    expect(JSON.parse(output.output.stdout)).toMatchObject({
+      command: 'doctor',
+      findings: [{ ruleId: 'config.test-dir-missing', file: 'playwright.config.ts', line: 3 }],
+    });
+  });
+
   it('maps the sample suite, writes the gitignore, and skips a current index', async () => {
     const root = await sampleRoot();
     const first = capture();

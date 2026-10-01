@@ -58,3 +58,4 @@
 
 ## v0.3 opt-in suite guidance
 - [x] D0 Contract and baselines — Drafted `docs/SPEC-v0.3.md` and added a small fixture with a literal missing `testDir`, two review patterns, a web-first assertion that must not be flagged, and an unrelated method name that must not be flagged. No production behavior changed. `npm run check` passes with 90 tests.
+- [x] D1 Doctor — Added opt-in `doctor` with static config-path finding, source line and official guidance link; missing/dynamic config and outside-root paths remain unknown rather than defects. No index or Playwright execution is required. Text/JSON output is deterministic and findings leave exit code 0. `npm run check` passes with 96 tests.
