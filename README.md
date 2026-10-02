@@ -141,6 +141,10 @@ Scout is intentionally focused on static discovery. It does not:
 
 For the complete behavior and supported patterns, see the [v0.3 guidance specification](docs/SPEC-v0.3.md), [v0.2 specification](docs/SPEC-v0.2.md), and [evaluation notes](docs/EVALUATION-v0.2.md). The [v0.1 specification](docs/SPEC.md) remains the baseline for earlier commands.
 
+## Evaluation status
+
+Two same-task Codex feasibility pairs are documented in the [pilot report](docs/PILOT-v0.4.md); they do not establish token or quality gains. Controlled agent runs are paused. The [P4 measurement notes](docs/P4-MEASUREMENT.md) describe the offline instrumentation and the quality-first criteria required before any efficiency claim.
+
 ## Development
 
 ```bash

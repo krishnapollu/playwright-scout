@@ -13,7 +13,7 @@
     "typecheck": "tsc -b && tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "vitest run",
+    "test": "vitest run && node --test bench/*.test.mjs",
     "check": "npm run lint && npm run typecheck && npm run test",
     "release:publish": "node scripts/publish.mjs"
   },

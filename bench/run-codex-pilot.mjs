@@ -5,6 +5,7 @@ import { lstat, readFile, readdir, realpath, writeFile } from 'node:fs/promises'
 import { finished } from 'node:stream/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { summarizeEvents } from './pilot-metrics.mjs';
 
 const IGNORED = new Set(['node_modules', '.agents', '.scout', '.git', '.logbook', 'playwright-report', 'test-results']);
 
@@ -28,35 +29,14 @@ async function sourceHashes(root, relative = '') {
   return hashes;
 }
 
-function usageFromJsonl(jsonl) {
-  const usage = { input_tokens: 0, output_tokens: 0, cached_input_tokens: 0 };
-  let completedTurns = 0;
-  let commandCount = 0;
-  let scoutCommandCount = 0;
-  for (const line of jsonl.split('\n')) {
-    if (!line.trim()) continue;
-    let event;
-    try { event = JSON.parse(line); } catch { continue; }
-    if (event.type === 'item.completed' && event.item?.type === 'command_execution') {
-      commandCount++;
-      if (typeof event.item.command === 'string' && /\bnpx playwright-scout\b/.test(event.item.command)) scoutCommandCount++;
-    }
-    if (event.type !== 'turn.completed' || !event.usage) continue;
-    completedTurns++;
-    for (const key of Object.keys(usage)) {
-      const value = event.usage[key];
-      if (typeof value === 'number' && Number.isFinite(value)) usage[key] += value;
-    }
-  }
-  return { ...usage, completed_turns: completedTurns, measured: completedTurns > 0, command_count: commandCount, scout_command_count: scoutCommandCount };
-}
-
 async function runArm({ codex, arm, directory, model, timeoutMs, prompt, outputRoot, original }) {
   const stdoutPath = path.join(outputRoot, `${arm}.jsonl`);
   const stderrPath = path.join(outputRoot, `${arm}.stderr.log`);
   const out = createWriteStream(stdoutPath);
   const err = createWriteStream(stderrPath);
   const started = performance.now();
+  const timedEvents = [];
+  let pending = '';
   const child = spawn(codex, [
     'exec', '--json', '--approve-for-me',
     '--skip-git-repo-check', '--ephemeral', '--ignore-user-config',
@@ -67,7 +47,17 @@ async function runArm({ codex, arm, directory, model, timeoutMs, prompt, outputR
     stdio: ['pipe', 'pipe', 'pipe'],
     detached: true,
   });
+  child.stdout.setEncoding('utf8');
   child.stdout.pipe(out);
+  child.stdout.on('data', (chunk) => {
+    pending += chunk;
+    const lines = pending.split('\n');
+    pending = lines.pop() ?? '';
+    for (const line of lines) {
+      try { timedEvents.push({ atMs: Math.round(performance.now() - started), event: JSON.parse(line) }); }
+      catch { /* Raw log retains malformed lines for local inspection. */ }
+    }
+  });
   child.stderr.pipe(err);
   child.stdin.end(prompt);
   let timedOut = false;
@@ -87,13 +77,19 @@ async function runArm({ codex, arm, directory, model, timeoutMs, prompt, outputR
   if (forceTimer) clearTimeout(forceTimer);
   await Promise.all([finished(out), finished(err)]);
   const modelElapsedMs = Math.round(performance.now() - started);
-  const usage = usageFromJsonl(await readFile(stdoutPath, 'utf8'));
+  if (pending.trim()) {
+    try { timedEvents.push({ atMs: modelElapsedMs, event: JSON.parse(pending) }); }
+    catch { /* Raw log retains malformed tail for local inspection. */ }
+  }
+  const metrics = summarizeEvents(timedEvents, modelElapsedMs);
+  const checkStarted = performance.now();
   const check = spawnSync('npx', ['--no-install', 'tsc', '--noEmit'], {
     cwd: directory,
     env: childEnv(),
     encoding: 'utf8',
     timeout: 60_000,
   });
+  const evaluatorCheckMs = Math.round(performance.now() - checkStarted);
   const final = await sourceHashes(directory);
   const changedFiles = Object.keys({ ...original, ...final }).filter((file) => original[file] !== final[file]).sort();
   return {
@@ -101,9 +97,13 @@ async function runArm({ codex, arm, directory, model, timeoutMs, prompt, outputR
     exit,
     timed_out: timedOut,
     elapsed_ms: modelElapsedMs,
-    usage,
+    usage: metrics.usage,
+    wall: { ...metrics.wall, evaluator_check_ms: evaluatorCheckMs,
+      total_ms: Math.round(performance.now() - started) },
+    commands: metrics.commands,
     typecheck_pass: check.status === 0,
     typecheck_exit: check.status,
+    typecheck_output_chars: (check.stdout?.length ?? 0) + (check.stderr?.length ?? 0),
     changed_files: changedFiles,
     diff_fingerprint: createHash('sha256').update(JSON.stringify(changedFiles.map((file) => [file, final[file] ?? null]))).digest('hex'),
     raw_logs: [stdoutPath, stderrPath],
