@@ -75,7 +75,7 @@ Scout writes the index to `.scout/index.json`. Add `.scout/` to your repository�
 - `--json` — return structured output for agents and scripts.
 - `--root <dir>` — run Scout against a different project directory.
 - `--if-stale` — with `map`, rebuild the index only when the source has changed.
-- `--max-chars <n>` — with `context`, bound the complete response (default 1800 characters, not an exact model token count). Use `show` on a cited ID for more evidence.
+- `--max-chars <n>` — with `context`, bound the complete response (default 1800 characters). Use `show` on a cited ID for more evidence.
 - `--target <agent>` — with `install-skill`, choose `claude`, `agents`, `github`, `cursor`, `qwen`, or `all`.
 
 See the [CLI reference](https://github.com/krishnapollu/playwright-scout/blob/main/docs/CLI.md) for all options.
@@ -122,7 +122,7 @@ const matches = searchIndex(index, 'login coupon', { kind: 'any', limit: 10 });
 
 All query commands support `--json` for structured agent output. See the [schema reference](https://github.com/krishnapollu/playwright-scout/blob/main/docs/SCHEMA.md) for the index format and the [CLI reference](https://github.com/krishnapollu/playwright-scout/blob/main/docs/CLI.md) for all options.
 
-## Scope and limitations
+## Known limitations
 
 Scout is intentionally focused on static discovery. It does not:
 
@@ -133,11 +133,13 @@ Scout is intentionally focused on static discovery. It does not:
 - resolve every fixture shape, indirect call, or runtime dependency;
 - analyze multiple Playwright configs in one run.
 
+Exported aliases of a reassigned `let` test object (for example, `let impl = a; impl = b; export const test = impl`) are still indexed as helpers.
+
 For the complete behavior and supported patterns, see the [v0.3 guidance specification](https://github.com/krishnapollu/playwright-scout/blob/main/docs/SPEC-v0.3.md), [v0.2 specification](https://github.com/krishnapollu/playwright-scout/blob/main/docs/SPEC-v0.2.md), and [evaluation notes](https://github.com/krishnapollu/playwright-scout/blob/main/docs/EVALUATION-v0.2.md). The [v0.1 specification](https://github.com/krishnapollu/playwright-scout/blob/main/docs/SPEC.md) remains the baseline for earlier commands.
 
 ## Evaluation status
 
-The two feasibility pilots had inconsistent token results; no token-savings or efficacy claim is made. See the [pilot report](https://github.com/krishnapollu/playwright-scout/blob/main/docs/PILOT-v0.4.md). Controlled agent runs are paused.
+The two feasibility pilots had inconsistent results; no efficiency or efficacy claim is made. See the [pilot report](https://github.com/krishnapollu/playwright-scout/blob/main/docs/PILOT-v0.4.md). Controlled agent runs are paused.
 
 ## Development
 
@@ -154,19 +156,6 @@ Try it against the included sample suite:
 node packages/cli/dist/bin.js map --root fixtures/sample-suite
 node packages/cli/dist/bin.js find login --root fixtures/sample-suite
 ```
-
-## Publishing (maintainers)
-
-Put your npm publish token in a local `.env` file as `npm_pat=...`. The file is ignored by Git. Then run:
-
-```bash
-npm run release:publish -- --dry-run
-npm run release:publish
-```
-
-The script checks the release, confirms the contents of both packages, and prompts before publishing core followed by the CLI. It skips a version that is already on npm, so you can rerun it if the second package fails. Bump the package you are releasing; if core changes, update the CLI's core dependency too. For prereleases, use `--tag next`.
-
-The [0.5.0 candidate verification](https://github.com/krishnapollu/playwright-scout/blob/main/docs/RELEASE-v0.5.md) preceded publication. Version `0.5.1` contains the follow-up fixes listed in the [changelog](https://github.com/krishnapollu/playwright-scout/blob/main/CHANGELOG.md); tagging a release remains a maintainer action.
 
 ## License
 

@@ -1,3 +1,7 @@
+## 0.5.2 - Unreleased
+
+- Documentation and repository cleanup.
+
 ## 0.5.1 - 2026-10-02
 
 - Fix exported aliases of local Playwright test objects being indexed as helpers.
