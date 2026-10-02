@@ -39,7 +39,9 @@ export async function buildIndex(options: BuildIndexOptions): Promise<Index> {
     if (parseErrors.length > 0) {
       const first = parseErrors[0];
       if (first) {
-        const line = first.start ? parsed.getLineAndCharacterOfPosition(first.start).line + 1 : null;
+        const line = first.start
+          ? parsed.getLineAndCharacterOfPosition(first.start).line + 1
+          : null;
         diagnostics.push({
           code: 'PARSE_ERROR',
           severity: 'warn',
@@ -66,7 +68,10 @@ export async function buildIndex(options: BuildIndexOptions): Promise<Index> {
     }
     factsByFile.set(rel, facts);
 
-    for (const specifier of [...facts.imports.map((item) => item.specifier), ...facts.exports.flatMap((item) => item.from ? [item.from] : [])]) {
+    for (const specifier of [
+      ...facts.imports.map((item) => item.specifier),
+      ...facts.exports.flatMap((item) => (item.from ? [item.from] : [])),
+    ]) {
       const target = resolveSpecifier(rel, specifier, aliasConfig, root);
       if (target) {
         selectedFiles.add(target);
@@ -84,7 +89,7 @@ export async function buildIndex(options: BuildIndexOptions): Promise<Index> {
     }
   }
 
-  const allFiles = [...selectedFiles].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+  const allFiles = [...selectedFiles].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   for (const rel of allFiles) {
     if (factsByFile.has(rel)) continue;
     const text = await fs.readFile(path.join(root, rel), 'utf8');
@@ -94,8 +99,16 @@ export async function buildIndex(options: BuildIndexOptions): Promise<Index> {
     if (parseErrors.length > 0) {
       const first = parseErrors[0];
       if (first) {
-        const line = first.start ? parsed.getLineAndCharacterOfPosition(first.start).line + 1 : null;
-        diagnostics.push({ code: 'PARSE_ERROR', severity: 'warn', message: first.messageText ? String(first.messageText) : 'Parse error', file: rel, line });
+        const line = first.start
+          ? parsed.getLineAndCharacterOfPosition(first.start).line + 1
+          : null;
+        diagnostics.push({
+          code: 'PARSE_ERROR',
+          severity: 'warn',
+          message: first.messageText ? String(first.messageText) : 'Parse error',
+          file: rel,
+          line,
+        });
       }
       facts.helperDetails = [];
       facts.fixtureDefs = [];
@@ -141,11 +154,13 @@ export async function buildIndex(options: BuildIndexOptions): Promise<Index> {
     tags: linked.tags,
     diagnostics: diagnostics.sort((a, b) => {
       const severityRank = { error: 0, warn: 1, info: 2 };
-      return severityRank[a.severity] - severityRank[b.severity]
-        || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0)
-        || ((a.file ?? '') < (b.file ?? '') ? -1 : (a.file ?? '') > (b.file ?? '') ? 1 : 0)
-        || (a.line ?? 0) - (b.line ?? 0)
-        || (a.message < b.message ? -1 : a.message > b.message ? 1 : 0);
+      return (
+        severityRank[a.severity] - severityRank[b.severity] ||
+        (a.code < b.code ? -1 : a.code > b.code ? 1 : 0) ||
+        ((a.file ?? '') < (b.file ?? '') ? -1 : (a.file ?? '') > (b.file ?? '') ? 1 : 0) ||
+        (a.line ?? 0) - (b.line ?? 0) ||
+        (a.message < b.message ? -1 : a.message > b.message ? 1 : 0)
+      );
     }),
   };
 

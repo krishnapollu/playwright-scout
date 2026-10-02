@@ -10,15 +10,15 @@ The identical task prompt asked Codex to add a Products-page jeans-search test t
 
 ## Observations
 
-| Measure | Control | Scout |
-| --- | ---: | ---: |
-| Provider-reported input tokens | 228,120 | 181,264 |
-| Of those, cached input tokens | 204,032 | 150,272 |
-| Output tokens | 1,941 | 2,334 |
-| Total input + output tokens | 230,061 | 183,598 |
-| Uncached input + output tokens | 26,029 | 33,326 |
-| Agent wall time | 60.4 s | 65.6 s |
-| Completed shell commands | 7 | 11 |
+| Measure                            |     Control |       Scout |
+| ---------------------------------- | ----------: | ----------: |
+| Provider-reported input tokens     |     228,120 |     181,264 |
+| Of those, cached input tokens      |     204,032 |     150,272 |
+| Output tokens                      |       1,941 |       2,334 |
+| Total input + output tokens        |     230,061 |     183,598 |
+| Uncached input + output tokens     |      26,029 |      33,326 |
+| Agent wall time                    |      60.4 s |      65.6 s |
+| Completed shell commands           |           7 |          11 |
 | Typecheck / targeted Chromium test | Pass / pass | Pass / pass |
 
 Both agents made **the same byte-for-byte change** to one existing spec, reusing its product page object and test data. Scout read its installed skill and successfully ran `map` and `context`; control did not use Scout. After the agent runs, both new tests passed in headless Chromium against the public practice site, and both typechecks passed. An initial browser attempt failed in the evaluation sandbox before Chromium launched; the same targeted checks were rerun with browser permission and passed. The agents' own time measurement excludes these later evaluator checks.
@@ -37,14 +37,14 @@ Scout's skill now permits skipping Scout queries for a clear local test edit. It
 
 Fresh identical snapshots, the same prompt/model alias/runner, and a 10-minute cap per arm were used. Random order was again **control, then Scout**. Both agents produced valid but not byte-identical tests: control used a loop over names, while Scout followed the adjacent dress-search test's `every(...)` style. Both passed TypeScript and the same targeted Chromium test against the public site.
 
-| Measure | Control | Scout |
-| --- | ---: | ---: |
+| Measure                        | Control |   Scout |
+| ------------------------------ | ------: | ------: |
 | Provider-reported input tokens | 231,585 | 172,574 |
-| Of those, cached input tokens | 192,000 | 147,968 |
-| Output tokens | 1,887 | 2,097 |
-| Total input + output tokens | 233,472 | 174,671 |
-| Uncached input + output tokens | 41,472 | 26,703 |
-| Agent wall time | 53.6 s | 63.0 s |
-| Completed shell commands | 8 | 8 |
+| Of those, cached input tokens  | 192,000 | 147,968 |
+| Output tokens                  |   1,887 |   2,097 |
+| Total input + output tokens    | 233,472 | 174,671 |
+| Uncached input + output tokens |  41,472 |  26,703 |
+| Agent wall time                |  53.6 s |  63.0 s |
+| Completed shell commands       |       8 |       8 |
 
-The earlier 28% *higher* uncached-plus-output result for Scout did not repeat: in this pair Scout was 35.6% *lower*. However, the control agent ran the **entire products suite** and received about 97,000 characters of output from a failed run; Scout ran only the targeted new test and received about 13,000 characters from its first failed attempt. This agent-choice difference, changing cache-hit rates, and single-run variation make the token delta unsuitable as causal evidence for the Scout changes. Scout read the revised skill and still called `map` and `context` together; the new abstention guidance was not exercised on this task. The ranking change was exercised and the brief named the relevant dress-search example. The next evaluation should use a different predeclared task and report command/output behavior alongside token usage.
+The earlier 28% _higher_ uncached-plus-output result for Scout did not repeat: in this pair Scout was 35.6% _lower_. However, the control agent ran the **entire products suite** and received about 97,000 characters of output from a failed run; Scout ran only the targeted new test and received about 13,000 characters from its first failed attempt. This agent-choice difference, changing cache-hit rates, and single-run variation make the token delta unsuitable as causal evidence for the Scout changes. Scout read the revised skill and still called `map` and `context` together; the new abstention guidance was not exercised on this task. The ranking change was exercised and the brief named the relevant dress-search example. The next evaluation should use a different predeclared task and report command/output behavior alongside token usage.

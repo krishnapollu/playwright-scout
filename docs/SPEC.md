@@ -20,18 +20,21 @@
 
 **playwright-scout** is a static-analysis tool plus an agent skill. It scans a Playwright test project **without running it**, builds a JSON **index** of what already exists (tests, page objects, helpers, fixtures, tags, routes visited), and lets a coding agent **query** that index before writing new test code, so the agent **reuses existing helpers instead of writing duplicates**.
 
-Headline promise (use in README first line): *"Your coding agent finds your existing Playwright helpers before it writes new ones."*
+Headline promise (use in README first line): _"Your coding agent finds your existing Playwright helpers before it writes new ones."_
 
 Deliverables of v0.1:
+
 - `playwright-scout-core` (npm library): builds and reads the index.
 - `playwright-scout` (npm CLI): commands `map`, `find`, `show`, `install-skill`.
 - `skills/playwright-scout/SKILL.md`: the agent skill that tells an agent when and how to call the CLI.
 - Docs, tests, CI.
 
 ### Non-goals for v0.1 (do NOT build)
+
 No test execution. No LLM/API calls. No run results or history (that is a different project). No lint/audit rules. No MCP server. No watch mode or caching. No Python/Java/.NET suites. No evaluation of `playwright.config` code (static reading only). No TypeScript type checker (`ts.Program`); syntax-level parsing only. No CommonJS (`require`, `module.exports`) support (emit a diagnostic instead).
 
 ### Success criteria
+
 - `npx playwright-scout map` on a 500-spec-file project finishes in under 5 seconds on a modern laptop.
 - Output is **deterministic**: same input → byte-identical index (with `--no-timestamp`).
 - An agent using the skill can find `LoginPage.login` from the query "log in" in one `find` call.
@@ -39,6 +42,7 @@ No test execution. No LLM/API calls. No run results or history (that is a differ
 ---
 
 ## 2. Glossary
+
 - **Root**: the directory being analysed (`--root`, default `process.cwd()`).
 - **Spec file**: a file matching the test-file globs (section 6.1).
 - **Support file**: a non-spec source file that is a candidate for helpers (section 6.2).
@@ -209,6 +213,7 @@ DiagnosticCode = 'CONFIG_NOT_FOUND' | 'CONFIG_DYNAMIC' | 'PARSE_ERROR' | 'FILE_T
 ```
 
 Rules:
+
 - Arrays inside objects that are described as "sorted" use code-unit order. Top-level arrays are sorted: `specs` by file; `tests` by (file, line, column); `helpers` by (file, line); `fixtures` by (file, line, name); `diagnostics` by (severity rank error<warn<info, code, file, line, message).
 - `readIndex()` MUST validate with zod and throw `ScoutError('INDEX_INVALID')` when invalid, and `ScoutError('INDEX_SCHEMA_MISMATCH')` when `schemaVersion !== 1`.
 - Never put absolute paths, usernames, or timestamps (except `generatedAt`) in the index.
@@ -220,6 +225,7 @@ Rules:
 Two phases. **Phase 1 (facts)**: for each file independently, parse once and extract a `FileFacts` object (pure function of file text + relative path). **Phase 2 (linking)**: resolve imports across files, resolve re-exports, build tests/helpers/fixtures with cross-references. Never keep ASTs after phase 1 (memory), only facts.
 
 ### 6.1 Spec-file discovery
+
 1. Root = resolved `--root`. Ignore always: `**/node_modules/**`, `**/dist/**`, `**/build/**`, `**/out/**`, `**/.git/**`, `**/.scout/**`, `**/playwright-report/**`, `**/test-results/**`, `**/blob-report/**`, `**/coverage/**`, `**/.next/**`, `**/.turbo/**`, `**/.cache/**`.
 2. Find config: first existing in root of `playwright.config.{ts,mts,cts,js,mjs,cjs}` (that order). If none: diagnostic `CONFIG_NOT_FOUND` (info), `testDir = "."`.
 3. Read config statically (section 6.3) → `testDir`, `testMatch`.
@@ -228,13 +234,16 @@ Two phases. **Phase 1 (facts)**: for each file independently, parse once and ext
 6. `language`: `typescript` if all spec + support files are TS-family, `javascript` if all JS-family, else `mixed`.
 
 ### 6.2 Support-file discovery
+
 Support files (helper candidates) = union of:
+
 - (a) all source files (`**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}`, minus ignores, minus spec files, minus `*.d.ts`) under `testDir` **when `testDir` is not `.`**;
 - (b) files **reachable** from any spec file by following resolvable local imports and re-exports (breadth-first, cycle-safe), even outside `testDir`;
 - (c) files matched by any `--include <glob>` CLI flag (globs relative to root).
-Files in (b)/(c) outside root are ignored. If `testDir` is `.`, only (b) and (c) apply.
+  Files in (b)/(c) outside root are ignored. If `testDir` is `.`, only (b) and (c) apply.
 
 ### 6.3 Static config reading (`config.ts`)
+
 - Parse the config with `ts.createSourceFile`. Find the default export: `export default defineConfig({...})`, `export default {...}`, or `export default <identifier>` whose top-level `const` initializer is one of those.
 - From the object literal read ONLY: `testDir` (string literal), `testMatch` (string literal or array of string literals), `projects` (array of object literals → collect `name` string literals; also collect each project's `testDir` if literal and add it as an extra spec root).
 - Any property whose value is not a literal → diagnostic `CONFIG_DYNAMIC` (info) once per property, and fall back to defaults. **Never execute the config.**
@@ -242,11 +251,14 @@ Files in (b)/(c) outside root are ignored. If `testDir` is `.`, only (b) and (c)
 - tsconfig: look for `tsconfig.json` in root, then in `testDir`. Use `ts.readConfigFile` + `ts.parseJsonConfigFileContent(config, ts.sys, dirname)` to obtain `options.paths` and `options.baseUrl` (this resolves `extends`). Store as `{ baseUrl: string | undefined (absolute), paths: Record<string,string[]> | undefined, pathsBasePath: string }` for the resolver. Missing/invalid tsconfig → no aliases, no error.
 
 ### 6.4 Parsing (`parse.ts`)
+
 - `parseFile(relPath, text)`: `ts.createSourceFile(relPath, text, ts.ScriptTarget.Latest, /*setParentNodes*/ true, kind)` where kind by extension: `.tsx`→TSX, `.jsx`→JSX, `.ts/.mts/.cts`→TS, `.js/.mjs/.cjs`→JS.
 - Parse errors: `getParseErrors(sf)` reads `(sf as unknown as { parseDiagnostics?: readonly ts.Diagnostic[] }).parseDiagnostics ?? []` (internal field; keep behind this one helper and comment why). If non-empty: emit `PARSE_ERROR` (warn, with first error's line) and **discard the file's facts** (treated as having no tests/exports). Its spec entry is kept with `testCount: 0`.
 
 ### 6.5 Phase 1: per-file facts (`facts.ts`)
+
 `extractFacts(relPath, sourceFile, isSpec): FileFacts` returns a plain object with:
+
 - `imports`: `{ specifier, kind: 'named'|'default'|'namespace', imported: string|null, local: string, typeOnly: boolean, line }[]` (skip side-effect imports).
 - `localDecls`: map local name → `{ kind: 'function'|'class'|'constant', node summary }` for **all top-level** function declarations, classes, and `const/let/var` declarations (names only for destructuring patterns are skipped).
 - `exports`: `{ exportName, localName | null, from: string | null, importedName: string | null, star: boolean }[]` covering: `export function/class/const`, `export { a, b as c }`, `export default <decl|expr>`, `export { a as b } from './x'`, `export * from './x'`. (`export * as ns from` is ignored.)
@@ -257,6 +269,7 @@ Files in (b)/(c) outside root are ignored. If `testDir` is `.`, only (b) and (c)
 - `cjs`: true if the file contains `module.exports` or `require(` → emit `CJS_UNSUPPORTED` (info) once; continue with what ESM syntax exists.
 
 **Helper details rules**
+
 - `function` kind: function declarations, and `const x = (…) => …` / `const x = function …` (also `async`). `params` = the text between the parentheses, whitespace collapsed (`/\s+/g` → single space, trimmed), truncated to 200 chars with `…`. `returns` = annotated return type text (else `null`).
 - `class` kind: `methods` = methods and getters excluded; include only `public` (explicit or default) and `protected` methods; skip `private`, `#private`, constructors, and property arrow functions. `extends` = expression text of the heritage clause.
 - `constant` kind: exported `const X = <non-function>`; `valuePreview` = initializer text collapsed to one line and truncated at 80 chars with `…`. **Exclude** constants that are test objects (6.6) and constants whose initializer is a re-used import identifier alias.
@@ -265,6 +278,7 @@ Files in (b)/(c) outside root are ignored. If `testDir` is `.`, only (b) and (c)
 - `category`: `page-object` if the class has a constructor parameter whose type text (`param.type.getText()`) matches `/\bPage\b/`, or a constructor parameter property (`private readonly page: Page`) — otherwise `helper`. Functions and constants are always `helper`.
 
 ### 6.6 Fixtures and test objects
+
 - A **test object** is an exported name (or local const) whose initializer is a call `<expr>.extend(...)` (any type arguments), or a call to `mergeTests(...)`, or an alias `const t = <known test object|test binding>`, or `export { test } from '@playwright/test'`, or `export { test as X } from '@playwright/test'`.
 - For each `.extend(<obj>)` call with a single object-literal argument, every property (identifier or string-literal key) is a **fixture**:
   - value is a function/arrow → `scope: 'test'`, `auto: false`, `option: false`.
@@ -273,9 +287,11 @@ Files in (b)/(c) outside root are ignored. If `testDir` is `.`, only (b) and (c)
   - `testObject` = name of the variable the `.extend` result is assigned to when it is exported; else `null`.
 
 ### 6.7 Test tree extraction (spec files only)
+
 **Test bindings** for a file: (1) local names imported as `test` (or `test as X`) from `@playwright/test`; (2) local names imported (named or default) from a local module whose resolved export is a test object; (3) local consts that are test objects (6.6); (4) the bare identifier `test` (always, as a fallback, because the file is a spec file).
 
 Recursive visitor with context `{ suitePath, tags, modifiers, inLoop }`. For each `CallExpression`:
+
 - **describe call**: callee is `T.describe`, or `T.describe.<m>` where `<m>` ∈ {`only`,`skip`,`fixme`,`serial`,`parallel`,`configure`} — `configure` is ignored (not a describe); `serial`/`parallel` add no modifier; `only`/`skip`/`fixme` add that modifier. Title = first argument (rules below). Visit the callback body with extended context.
 - **test call**: callee is `T`, or `T.<m>` with `<m>` ∈ {`only`,`skip`,`fixme`,`fail`,`slow`}. For `T.skip|fixme|fail|slow` it is a **declaration only if the first argument is a string literal, no-substitution template, or template expression**; otherwise it is a runtime call inside a test (`test.skip(cond, 'reason')`) and MUST be ignored. Record a `TestEntry`. Do not look for tests inside the callback.
 - Hooks (`T.beforeEach/afterEach/beforeAll/afterAll`), `T.use`, `T.step`, `T.setTimeout`: ignored for tests (their identifiers still count as file-level references).
@@ -288,12 +304,15 @@ Recursive visitor with context `{ suitePath, tags, modifiers, inLoop }`. For eac
 - `endLine`: line of the closing of the call expression.
 
 ### 6.8 IDs
+
 - test: `test:<file>::<suitePath joined with " > ">` + (`" > "` only if suitePath non-empty) + `<title>`. If `title` is null → `test:<file>:L<line>`. If the same id occurs twice, append `#2`, `#3`, … in source order.
 - helper: `helper:<file>#<name>`, where `name` is the declared name (for `export default class CheckoutPage`, `name` is `CheckoutPage` and `exportName` is `default`). For an anonymous default export, `name` is `default` and the id is `helper:<file>#default`.
 - method: `helper:<file>#<Class>.<method>`. fixture: `fixture:<file>#<name>`. spec: `spec:<file>`.
 
 ### 6.9 Module resolution (`resolve.ts`)
+
 `resolveSpecifier(fromFile, specifier, aliasConfig): string | null` returns a root-relative posix path of an existing local source file, or `null` for external/unresolvable specifiers.
+
 1. If specifier starts with `.` → candidate base = `path.resolve(dirname(fromFile), specifier)`.
 2. Else if it matches a tsconfig `paths` pattern (pattern with at most one `*`; try patterns in declaration order; substitute into each target; targets are relative to `pathsBasePath`) → candidate bases from targets. Else if `baseUrl` is set → try `baseUrl/specifier`. Otherwise external → `null` (silent).
 3. Probing for each candidate base, in this order, first existing **file** wins:
@@ -305,6 +324,7 @@ Recursive visitor with context `{ suitePath, tags, modifiers, inLoop }`. For eac
 5. A **relative** specifier that fails to resolve → diagnostic `UNRESOLVED_IMPORT` (info), max 50 such diagnostics per run (then stop emitting, no summary needed).
 
 `resolveExport(file, exportName, seen = Set)`: returns `{ file, localName }` of the original declaration or `null`.
+
 - Guard cycles with `seen` keyed `file#exportName`.
 - Direct export with `localName` → return it. `export { a as b }` (no `from`) → `localName = a`.
 - `export { a as b } from './x'` matching `exportName` → `resolveExport(resolve('./x'), a)`.
@@ -313,6 +333,7 @@ Recursive visitor with context `{ suitePath, tags, modifiers, inLoop }`. For eac
 - `export default X` (identifier) → `localName = X`. Anonymous default → `localName = null`, helper name `default`.
 
 ### 6.10 Linking (`link.ts`)
+
 1. Build the file set: spec files + support files (6.2, computing reachability with the resolver over `imports` and `exports.from`).
 2. Build `HelperEntry` for every exported symbol of every support file, **de-duplicated by original declaration** (a helper re-exported through barrels is one entry, defined in its original file). Barrel files (only re-exports) produce no helpers.
 3. **References**: for each file, for each import binding whose specifier resolves locally: `resolveExport(targetFile, importedName)` → helper id. Named/default bindings count when the local name appears in that file's `references`. Namespace imports: each `ns.member` access resolves `member`.
@@ -322,11 +343,13 @@ Recursive visitor with context `{ suitePath, tags, modifiers, inLoop }`. For eac
 7. If `specs` is empty or the total test count is 0 → diagnostic `NO_TESTS_FOUND` (error).
 
 ### 6.11 Determinism and performance
+
 - Same input tree → byte-identical `index.json` when `generatedAt` is `null` (deterministic mode: `--no-timestamp` flag or env `SCOUT_DETERMINISTIC=1`).
 - Read files with `fs.promises.readFile(…, 'utf8')` using a concurrency limit of 32 (simple pool; no extra dependency). Parse each file once.
 - No use of `Date.now()`, `Math.random()`, or object-key iteration order that depends on filesystem order (always sort).
 
 ### 6.12 Errors (`errors.ts`)
+
 `class ScoutError extends Error { code: ScoutErrorCode }` with codes: `ROOT_NOT_FOUND`, `NO_TESTS_FOUND`, `INDEX_MISSING`, `INDEX_INVALID`, `INDEX_SCHEMA_MISMATCH`, `NOT_FOUND`, `AMBIGUOUS`, `USAGE`. The CLI maps codes to exit codes (section 7.1).
 
 ---
@@ -338,25 +361,33 @@ Binary names: `playwright-scout` and `scout` (both → `dist/bin.js`, first line
 **Streams**: results → stdout; progress, warnings, diagnostics → stderr. `--quiet` suppresses stderr except errors.
 
 ### 7.1 Exit codes
+
 `0` ok · `1` unexpected error · `2` usage error · `3` no tests found · `4` index missing/invalid (message: `Run: npx playwright-scout map`) · `5` not found / ambiguous.
 
 ### 7.2 `map`
+
 `playwright-scout map [--root <dir>] [--out <file>] [--include <glob>...] [--no-timestamp] [--if-stale] [--json] [--verbose] [--quiet]`
+
 - Default `--out`: `<root>/.scout/index.json`. Create the directory and a `.scout/.gitignore` containing `*` (only if absent).
 - `--if-stale`: if the index exists, is valid, and its file mtime is newer than every discovered source file and config file → print `scout: index is up to date` and exit 0 without rebuilding.
 - If no tests found (exit 3): print the `NO_TESTS_FOUND` message to stderr, do **not** write the index.
 - Default stdout (exactly this shape):
+
 ```
 scout: indexed 4 spec files, 7 tests, 7 helpers (2 page objects), 3 fixtures in 0.3s
 index: .scout/index.json (schema v1)
 helper dirs: pages (2), utils (2), tests/support (1)
 warnings: 2 (use --verbose to list)
 ```
-  `helper dirs` line lists `helperDirs` as `<dir> (<count>)`, comma-separated; omit the line if empty. `warnings` line only if diagnostics of severity warn/error exist. `--verbose` prints each diagnostic to stderr as `<severity> <code> <file>:<line> <message>`.
+
+`helper dirs` line lists `helperDirs` as `<dir> (<count>)`, comma-separated; omit the line if empty. `warnings` line only if diagnostics of severity warn/error exist. `--verbose` prints each diagnostic to stderr as `<severity> <code> <file>:<line> <message>`.
+
 - `--json`: print the summary as JSON `{ "specFiles":…, "tests":…, "helpers":…, "indexPath":… }` instead.
 
 ### 7.3 `find`
+
 `playwright-scout find <query...> [--kind helper|method|test|fixture|any] [--limit <n>] [--root <dir>] [--json]`
+
 - Loads the index (exit 4 if missing/invalid). Query = all positional words joined by spaces. Default `--kind any`, `--limit 10`.
 - **Candidates**: every helper (`helper`), every class method (`method`), every test (`test`), every fixture (`fixture`).
 - **Tokenizer** `tokenize(text)`: split on non-alphanumeric characters; then split camelCase boundaries with `/([a-z0-9])([A-Z])/g → "$1 $2"` and `/([A-Z]+)([A-Z][a-z])/g → "$1 $2"`; lowercase; drop tokens of length 1 and stopwords `a an the for to of and or in on with is are`; unique.
@@ -365,17 +396,21 @@ warnings: 2 (use --verbose to list)
 - Sort: score desc, then id asc. Apply `--kind` filter **before** scoring, then `--limit`.
 - **Kind display vs filter**: the `--kind helper` filter matches all three helper kinds (function, class, constant). In output, the displayed kind is the helper's own `kind` (`function`, `class`, `constant`), or `method`, `test`, `fixture`.
 - **Text output**, one line per result, ≤ 200 chars (truncate with `…`):
+
 ```
 <kind padded to 8> <label>  <file>:<line>  [used in N specs]  [tags: a,b]  — <summary>
 ```
-  - `label`: helper → `Name(params)` for functions, `Name` for classes/constants; method → `Class.method(params)`; test → the title (with suite path `A > B > title`); fixture → `name` .
-  - `used in N specs` only for helpers/methods that have a count > 0 (methods use their class's count). `tags:` only for tests with tags. `summary`: helper/method `doc`, else `returns`/`valuePreview`, else omitted (also omit the ` — `).
-  - Example: `method   LoginPage.login(user: string, pass: string)  pages/login.page.ts:12  used in 1 specs  — Logs in through the UI form.`
+
+- `label`: helper → `Name(params)` for functions, `Name` for classes/constants; method → `Class.method(params)`; test → the title (with suite path `A > B > title`); fixture → `name` .
+- `used in N specs` only for helpers/methods that have a count > 0 (methods use their class's count). `tags:` only for tests with tags. `summary`: helper/method `doc`, else `returns`/`valuePreview`, else omitted (also omit the `—`).
+- Example: `method   LoginPage.login(user: string, pass: string)  pages/login.page.ts:12  used in 1 specs  — Logs in through the UI form.`
 - No results: print `scout: no matches for "<query>"` to stdout, exit 0.
 - `--json`: array of `{ id, kind, label, file, line, score, usedBySpecCount, summary }`.
 
 ### 7.4 `show`
+
 `playwright-scout show <id> [--root <dir>] [--json]`
+
 - `<id>` is a full id, or a **unique suffix** after `#` or `::` or the whole label (e.g. `LoginPage.login`, `uniqueEmail`). Zero matches → exit 5 with `scout: not found: <id>`. More than one → exit 5, list candidate ids (max 10) one per line on stderr.
 - Text output by kind:
   - helper/class: `kind name`, `file:line-endLine`, `doc`, `params`/`returns`, `extends`, `category`, methods list (`name(params)`), `navigatesTo`, `used in <usedBySpecCount> specs`, `referenced by:` up to 10 files.
@@ -385,7 +420,9 @@ warnings: 2 (use --verbose to list)
 - `--json`: the raw entry.
 
 ### 7.5 `install-skill`
+
 `playwright-scout install-skill [--target claude|agents|github|cursor|all] [--global] [--force] [--root <dir>]`
+
 - Copies the bundled `SKILL.md` (from `packages/cli/skills/playwright-scout/SKILL.md`, populated at build by `scripts/copy-skill.mjs`) into: `claude` → `.claude/skills/playwright-scout/SKILL.md`; `agents` → `.agents/skills/playwright-scout/SKILL.md`; `github` → `.github/skills/playwright-scout/SKILL.md`; `cursor` → `.cursor/skills/playwright-scout/SKILL.md`. Default target: `agents`. `all` = all four. `--global` is valid only with `claude` → `~/.claude/skills/playwright-scout/SKILL.md`.
 - Existing file without `--force` → skip and print `skipped (exists): <path>`. Print `installed: <path>` per file.
 - Keep the target→directory mapping in **one constant object** so it can be corrected later (agent tools change their skill directories; mention in docs that users should verify their tool's current path).
@@ -405,9 +442,11 @@ description: Use before writing or changing any Playwright test, page object, fi
 Find what already exists before you write test code.
 
 ## When to use
+
 Any time you are about to create or modify: a Playwright test, a page object, a fixture, or a test helper/util.
 
 ## Steps
+
 1. Make sure the index is fresh (fast, safe to repeat):
    `npx playwright-scout map --if-stale --quiet`
 2. Search 2-3 times using different words (actions and page names, e.g. "login", "checkout coupon", "create user api"):
@@ -420,12 +459,14 @@ Any time you are about to create or modify: a Playwright test, a page object, a 
 5. After adding or changing exported helpers, re-run `npx playwright-scout map`.
 
 ## Rules
+
 - Never read or edit `.scout/index.json` directly; it is large. Use `find` and `show`.
 - If `find` returned a relevant match and you did not use it, say why in one sentence in your final message.
 - The index is static analysis: fixture parameters are not linked to their classes, and CommonJS files are not indexed. If something seems missing, search the code normally.
 - Do not commit `.scout/`.
 
 ## Examples
+
 - Task "add a test for applying a coupon at checkout" → `find coupon checkout` → reuse `CheckoutPage.applyCoupon`.
 - Task "need a unique email for signup" → `find unique email` → reuse `uniqueEmail`.
 ```
@@ -441,6 +482,7 @@ Create these files exactly (they are parsed, never run; `@playwright/test` need 
 `tsconfig.json`: `{ "compilerOptions": { "baseUrl": ".", "paths": { "@pages/*": ["pages/*"], "@utils/*": ["utils/*"] } } }`
 
 `playwright.config.ts`
+
 ```ts
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
@@ -448,7 +490,9 @@ export default defineConfig({
   projects: [{ name: 'chromium' }, { name: 'mobile' }],
 });
 ```
+
 `pages/login.page.ts`
+
 ```ts
 import type { Page, Locator } from '@playwright/test';
 /** Login screen of the app. */
@@ -470,21 +514,31 @@ export class LoginPage {
   private secret() {}
 }
 ```
+
 `pages/checkout.page.ts`
+
 ```ts
 import type { Page } from '@playwright/test';
 export default class CheckoutPage {
   constructor(readonly page: Page) {}
-  async open() { await this.page.goto('/checkout'); }
-  async applyCoupon(code: string) { await this.page.getByPlaceholder('Coupon').fill(code); }
+  async open() {
+    await this.page.goto('/checkout');
+  }
+  async applyCoupon(code: string) {
+    await this.page.getByPlaceholder('Coupon').fill(code);
+  }
 }
 ```
+
 `pages/index.ts`
+
 ```ts
 export * from './login.page';
 export { default as CheckoutPage } from './checkout.page';
 ```
+
 `utils/auth.ts`
+
 ```ts
 import type { APIRequestContext } from '@playwright/test';
 /** Creates a unique test user email. */
@@ -495,24 +549,42 @@ export const loginViaApi = async (request: APIRequestContext, user: string) => {
   await request.post('/api/login', { data: { user } });
 };
 ```
+
 `utils/data.ts`
+
 ```ts
-export const USERS = { admin: { name: 'admin', pass: 'secret' }, guest: { name: 'guest', pass: 'guest' } };
+export const USERS = {
+  admin: { name: 'admin', pass: 'secret' },
+  guest: { name: 'guest', pass: 'guest' },
+};
 export const COUPON_CODE = 'SAVE10';
 ```
+
 `fixtures/index.ts`
+
 ```ts
 import { test as base, expect } from '@playwright/test';
 import { LoginPage, CheckoutPage } from '@pages/index';
 type Fx = { loginPage: LoginPage; checkoutPage: CheckoutPage; adminToken: string };
 export const test = base.extend<Fx>({
-  loginPage: async ({ page }, use) => { await use(new LoginPage(page)); },
-  checkoutPage: async ({ page }, use) => { await use(new CheckoutPage(page)); },
-  adminToken: [async ({}, use) => { await use('t'); }, { scope: 'worker', auto: true }],
+  loginPage: async ({ page }, use) => {
+    await use(new LoginPage(page));
+  },
+  checkoutPage: async ({ page }, use) => {
+    await use(new CheckoutPage(page));
+  },
+  adminToken: [
+    async ({}, use) => {
+      await use('t');
+    },
+    { scope: 'worker', auto: true },
+  ],
 });
 export { expect };
 ```
+
 `tests/login.spec.ts`
+
 ```ts
 import { test, expect } from '../fixtures/index';
 import { USERS } from '../utils/data';
@@ -538,7 +610,9 @@ for (const role of ['admin', 'guest']) {
   });
 }
 ```
+
 `tests/checkout.spec.ts`
+
 ```ts
 import { test } from '../fixtures/index';
 import { CheckoutPage } from '@pages/index';
@@ -555,7 +629,9 @@ test.describe.serial('Checkout', () => {
   test.fixme('pays with saved card', async ({ page }) => {});
 });
 ```
+
 `tests/legacy.spec.js`
+
 ```js
 import { test } from '@playwright/test';
 import { uniqueEmail } from '../utils/auth.js';
@@ -564,16 +640,21 @@ test('legacy signup', async ({ page }) => {
   uniqueEmail('legacy');
 });
 ```
+
 `tests/broken.spec.ts`: `import { test } from '@playwright/test';` newline `test('broken', async ({ page }) => {` (deliberately unterminated).
 
 `tests/support/unused.ts`
+
 ```ts
 import type { Page } from '@playwright/test';
 /** Waits until the network is idle. */
-export async function waitForIdle(page: Page) { await page.waitForLoadState('networkidle'); }
+export async function waitForIdle(page: Page) {
+  await page.waitForLoadState('networkidle');
+}
 ```
 
 ### 9.1 Expected results (golden test asserts these)
+
 - `project`: `configFile: "playwright.config.ts"`, `testDir: "tests"`, `playwrightProjects: ["chromium","mobile"]`, `language: "mixed"`.
 - `stats`: specFiles 4, tests 7, helpers 7, methods 4 (`login`, `errorText`, `open`, `applyCoupon`), pageObjects 2, fixtures 3, tags 3, filesSkipped 0.
 - Specs: `tests/broken.spec.ts` (testCount 0, `PARSE_ERROR` warn), `tests/checkout.spec.ts` (2), `tests/legacy.spec.js` (1), `tests/login.spec.ts` (4).
@@ -593,27 +674,27 @@ export async function waitForIdle(page: Page) { await page.waitForLoadState('net
 
 ## 10. Task plan (do in order)
 
-**T0 Scaffold.** Create the layout in section 3, root/package configs, ESLint flat config (typescript-eslint recommended + eslint-config-prettier), Prettier (`singleQuote`, `printWidth: 100`, trailing commas `all`), `.gitignore`, MIT LICENSE (`<YOUR NAME>` placeholder), `AGENTS.md`, CI workflow (12.3), `docs/PROGRESS.md`, `docs/DECISIONS.md`, `docs/SPEC.md` (this file). Add one trivial passing test per package. *Accept:* `npm ci && npm run check` passes on a fresh clone.
+**T0 Scaffold.** Create the layout in section 3, root/package configs, ESLint flat config (typescript-eslint recommended + eslint-config-prettier), Prettier (`singleQuote`, `printWidth: 100`, trailing commas `all`), `.gitignore`, MIT LICENSE (`<YOUR NAME>` placeholder), `AGENTS.md`, CI workflow (12.3), `docs/PROGRESS.md`, `docs/DECISIONS.md`, `docs/SPEC.md` (this file). Add one trivial passing test per package. _Accept:_ `npm ci && npm run check` passes on a fresh clone.
 
-**T1 Schema & IO.** `schema.ts` (zod for every type in section 5), `errors.ts`, `paths.ts`, `io.ts` (`writeIndex`, `readIndex`, deterministic serialisation, `.scout/.gitignore`). *Tests:* valid minimal index round-trips byte-identically; invalid JSON → `INDEX_INVALID`; `schemaVersion: 2` → `INDEX_SCHEMA_MISMATCH`. *Accept:* 100% of schema types exported from `index.ts`.
+**T1 Schema & IO.** `schema.ts` (zod for every type in section 5), `errors.ts`, `paths.ts`, `io.ts` (`writeIndex`, `readIndex`, deterministic serialisation, `.scout/.gitignore`). _Tests:_ valid minimal index round-trips byte-identically; invalid JSON → `INDEX_INVALID`; `schemaVersion: 2` → `INDEX_SCHEMA_MISMATCH`. _Accept:_ 100% of schema types exported from `index.ts`.
 
-**T2 Discovery & config.** `discover.ts`, `config.ts` (6.1–6.3). *Tests (using the sample suite):* finds 4 spec files; ignores `node_modules`; reads `testDir` `tests` and both project names; dynamic `testDir: process.env.X` → default + `CONFIG_DYNAMIC`; missing config → `CONFIG_NOT_FOUND`; tsconfig paths loaded.
+**T2 Discovery & config.** `discover.ts`, `config.ts` (6.1–6.3). _Tests (using the sample suite):_ finds 4 spec files; ignores `node_modules`; reads `testDir` `tests` and both project names; dynamic `testDir: process.env.X` → default + `CONFIG_DYNAMIC`; missing config → `CONFIG_NOT_FOUND`; tsconfig paths loaded.
 
-**T3 Parse & resolve.** `parse.ts`, `resolve.ts` (6.4, 6.9). *Tests:* `../utils/auth.js` resolves to `utils/auth.ts`; alias `@utils/auth` resolves; `@pages/index` resolves; directory import resolves to `index`; external package → null; `resolveExport` follows `export *`, `export { default as X } from`, cycles terminate; broken file → parse errors detected.
+**T3 Parse & resolve.** `parse.ts`, `resolve.ts` (6.4, 6.9). _Tests:_ `../utils/auth.js` resolves to `utils/auth.ts`; alias `@utils/auth` resolves; `@pages/index` resolves; directory import resolves to `index`; external package → null; `resolveExport` follows `export *`, `export { default as X } from`, cycles terminate; broken file → parse errors detected.
 
-**T4 Helper & fixture facts.** `facts.ts` helper/fixture/test-object parts (6.5, 6.6). *Tests:* every helper expectation in 9.1 at the facts level (params text, docs, methods excluding private, category, valuePreview).
+**T4 Helper & fixture facts.** `facts.ts` helper/fixture/test-object parts (6.5, 6.6). _Tests:_ every helper expectation in 9.1 at the facts level (params text, docs, methods excluding private, category, valuePreview).
 
-**T5 Test-tree facts.** Test extraction (6.7). *Tests:* the four login tests, loop, modifiers, `test.skip(cond)` inside a body is ignored, `test.describe.configure` ignored, tag parsing from title and details, dynamic title rendering, unrecognised second-argument shapes do not crash.
+**T5 Test-tree facts.** Test extraction (6.7). _Tests:_ the four login tests, loop, modifiers, `test.skip(cond)` inside a body is ignored, `test.describe.configure` ignored, tag parsing from title and details, dynamic title rendering, unrecognised second-argument shapes do not crash.
 
-**T6 Linking & build.** `link.ts`, `build.ts` (6.10, 6.11). `buildIndex({ root, include?, deterministic? })` returns `Index`. *Tests:* the complete 9.1 expectations; running twice yields identical serialised output; helper dirs correct; `NO_TESTS_FOUND` error path.
+**T6 Linking & build.** `link.ts`, `build.ts` (6.10, 6.11). `buildIndex({ root, include?, deterministic? })` returns `Index`. _Tests:_ the complete 9.1 expectations; running twice yields identical serialised output; helper dirs correct; `NO_TESTS_FOUND` error path.
 
-**T7 CLI `map`.** `bin.ts`, `program.ts`, `commands/map.ts`, `format.ts` (7.1, 7.2). *Tests:* run `program` in-process (inject stdout/stderr writers and root) for: normal output shape, `--json`, `--if-stale` (up to date vs stale after touching a file), exit code 3 on an empty dir, `.scout/.gitignore` created. *Accept:* `node packages/cli/dist/bin.js map --root fixtures/sample-suite` prints the summary.
+**T7 CLI `map`.** `bin.ts`, `program.ts`, `commands/map.ts`, `format.ts` (7.1, 7.2). _Tests:_ run `program` in-process (inject stdout/stderr writers and root) for: normal output shape, `--json`, `--if-stale` (up to date vs stale after touching a file), exit code 3 on an empty dir, `.scout/.gitignore` created. _Accept:_ `node packages/cli/dist/bin.js map --root fixtures/sample-suite` prints the summary.
 
-**T8 Search & show.** `search.ts`, `show.ts`, commands `find`, `show` (7.3, 7.4). *Tests:* tokenizer (`applyCoupon` → `apply`,`coupon`; `COUPON_CODE` → `coupon`,`code`; `getByRole` → `get`,`by`,`role`), scoring examples in 9.1, `--kind`, `--limit`, `--json`, ambiguous/unique-suffix `show`, exit codes 4 and 5.
+**T8 Search & show.** `search.ts`, `show.ts`, commands `find`, `show` (7.3, 7.4). _Tests:_ tokenizer (`applyCoupon` → `apply`,`coupon`; `COUPON_CODE` → `coupon`,`code`; `getByRole` → `get`,`by`,`role`), scoring examples in 9.1, `--kind`, `--limit`, `--json`, ambiguous/unique-suffix `show`, exit codes 4 and 5.
 
 **T9 Robustness.** Tests: empty file; file with only comments; huge file (>1 MiB) skipped; CRLF line endings give the same line numbers; Windows-style paths normalised (unit-test `paths.ts` with `path.win32`); 1,000 generated tiny spec files build in under 5 s (assert < 15 s in CI to avoid flakiness); non-UTF8 file does not crash.
 
-**T10 Skill & installer.** Write `SKILL.md` (section 8), `scripts/copy-skill.mjs`, `install-skill` command (7.5). *Tests:* installs into a temp dir for each target; skips existing; `--force` overwrites; `--global` with a non-claude target → usage error 2.
+**T10 Skill & installer.** Write `SKILL.md` (section 8), `scripts/copy-skill.mjs`, `install-skill` command (7.5). _Tests:_ installs into a temp dir for each target; skips existing; `--force` overwrites; `--global` with a non-claude target → usage error 2.
 
 **T11 Docs.** `README.md` (headline, 60-second quickstart: `npx playwright-scout map` → `find` → `show`, how the skill works, limitations list, supported platforms, comparison to "just grepping"), `docs/SCHEMA.md` (generated by hand from section 5), `docs/CLI.md`, `CONTRIBUTING.md`, `CHANGELOG.md` (`0.1.0` entry). README MUST list the known limitations from section 14.
 
@@ -624,6 +705,7 @@ export async function waitForIdle(page: Page) { await page.waitForLoadState('net
 ---
 
 ## 11. Testing strategy
+
 - Prefer testing `core` functions directly over CLI. CLI tests run the commander `program` in-process with injectable `stdout`/`stderr` write functions and a `cwd/root` parameter, so no child processes are needed except one smoke test of the built binary.
 - Golden approach: build the sample-suite index in deterministic mode and assert on **specific fields** from 9.1 (not a whole-file snapshot), plus one whole-file snapshot stored at `packages/core/test/__snapshots__/sample-suite.index.json` for change visibility.
 - Every bug fixed gets a test first.
@@ -634,23 +716,27 @@ export async function waitForIdle(page: Page) { await page.waitForLoadState('net
 ## 12. Boilerplate to copy
 
 ### 12.1 Package manifest essentials
+
 Root `package.json`: `{ "name": "playwright-scout-monorepo", "private": true, "type": "module", "workspaces": ["packages/*"], "engines": { "node": ">=20" }, "scripts": { … section 4 … } }`.
 `packages/core/package.json`: name `playwright-scout-core`, `type: module`, `main: ./dist/index.js`, `types: ./dist/index.d.ts`, `exports: { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } }`, `files: ["dist"]`.
 `packages/cli/package.json`: name `playwright-scout`, `bin: { "playwright-scout": "dist/bin.js", "scout": "dist/bin.js" }`, `files: ["dist", "skills"]`, dependency `"playwright-scout-core": "*"` (workspace).
 
 ### 12.2 `AGENTS.md` (copy verbatim to repo root)
+
 ```markdown
 # AGENTS.md
 
 Project: playwright-scout — static index of a Playwright suite + agent skill. Full spec: docs/SPEC.md.
 
 ## Commands
+
 - Install: `npm ci`
 - Full check (run before every commit): `npm run check`
-- Tests only: `npm test`   · Build: `npm run build`
+- Tests only: `npm test` · Build: `npm run build`
 - Try the CLI: `node packages/cli/dist/bin.js map --root fixtures/sample-suite`
 
 ## Rules
+
 - ESM only. Relative imports in source end with `.js`. Use `import type` for types.
 - `core` never prints, never exits, never executes analysed code. Only `cli` prints.
 - All paths in output are POSIX and relative to the root. Sort with code-unit comparison, never localeCompare.
@@ -660,15 +746,18 @@ Project: playwright-scout — static index of a Playwright suite + agent skill. 
 - Never run `npm publish`.
 
 ## Layout
+
 packages/core = library, packages/cli = commands, skills/ = SKILL.md, fixtures/sample-suite = test input.
 ```
 
 ### 12.3 CI (`.github/workflows/ci.yml`)
+
 Trigger on `push` (main) and `pull_request`. Matrix: `os: [ubuntu-latest, macos-latest]`, `node: [20, 22]`. Steps: `actions/checkout`, `actions/setup-node` (with `node-version` and `cache: npm`), `npm ci`, `npm run lint`, `npm run typecheck`, `npm run build`, `npm test`. Use current major versions of the actions (verify).
 
 ---
 
 ## 13. Quality bar checklist (review before finishing each task)
+
 - Would the output be identical if files were listed in a different order? (must be)
 - Any absolute path, `\` separator, or locale-dependent sort? (must not)
 - Any code path that could throw on unexpected syntax (unusual argument shapes, missing callbacks, spread arguments)? Guard and continue; never crash on one bad file — convert to a diagnostic.
@@ -676,9 +765,11 @@ Trigger on `push` (main) and `pull_request`. Matrix: `os: [ubuntu-latest, macos-
 - Any type assertion (`as`) that could be replaced by a type guard? Replace it (except the single documented `parseDiagnostics` access).
 
 ## 14. Known limitations (must appear in README)
+
 CommonJS files are not indexed. Fixture parameters are not linked to the classes they construct, so `loginPage.login()` calls made through fixtures are not recorded in `calls` (the fixture name is recorded in `fixtures`). Only string-literal `goto` arguments are captured. Dynamic test titles are approximated. Monorepos with several Playwright configs are analysed one root at a time. Only ESM-style imports/exports are followed.
 
 ## 15. Definition of done (v0.1)
+
 - [ ] T0–T12 complete; `PROGRESS.md` all checked; `npm run check` green on CI (Node 20 and 22, ubuntu and macOS).
 - [ ] `map`, `find`, `show`, `install-skill` behave exactly as section 7 on the sample suite.
 - [ ] Skill file installed by `install-skill` matches section 8.
@@ -686,11 +777,13 @@ CommonJS files are not indexed. Fixture parameters are not linked to the classes
 - [ ] `npm pack --dry-run` output reviewed (T13).
 
 ## 16. Roadmap (not part of this build)
+
 - **v0.2**: `audit` command (static rules: hard waits, brittle locators, redundant assertions) reading the same facts; benchmark harness in `bench/` — task files with `mustReuse` symbol ids and `mustNotCreate` flag, scored deterministically by re-running `map` before/after and diffing (`tests[].calls` contains the required ids; count of new exported helpers), plus tokens and pass/fail from the agent log; report "with vs without skill".
 - **v0.3**: flake-doctor skill; caching by content hash (facts are already per-file and pure); CommonJS support; fixture-to-class linking.
 - **Later**: MCP server exposing `find/show`; the separate `playwright-logbook` reporter imports `playwright-scout-core` for the project view and adds run data.
 
 ## 17. Human-only steps (the assistant must not do these)
+
 1. Replace `<YOUR NAME>` in `LICENSE`.
 2. Create the GitHub repo `playwright-scout` under your personal account; push; pin it on the profile.
 3. Confirm the skill directory each agent tool currently uses and adjust the single mapping constant in `install-skill` if needed.

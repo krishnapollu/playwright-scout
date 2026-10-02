@@ -9,7 +9,10 @@ export type ScoutErrorCode =
   | 'USAGE';
 
 export class ScoutError extends Error {
-  constructor(public code: ScoutErrorCode, message?: string) {
+  constructor(
+    public code: ScoutErrorCode,
+    message?: string,
+  ) {
     super(message || code);
     this.name = 'ScoutError';
   }

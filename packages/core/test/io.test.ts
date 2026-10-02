@@ -50,11 +50,11 @@ describe('io', () => {
     };
 
     await writeIndex(tmpDir, minimalIndex);
-    
+
     // Check .scout/.gitignore
     const gitignore = await fs.readFile(path.join(tmpDir, '.scout', '.gitignore'), 'utf8');
     expect(gitignore).toBe('*\n');
-    
+
     // Check byte-identical
     const expectedJson = JSON.stringify(minimalIndex, null, 2) + '\n';
     const actualJson = await fs.readFile(path.join(tmpDir, '.scout', 'index.json'), 'utf8');
@@ -68,24 +68,21 @@ describe('io', () => {
   it('invalid JSON throws INDEX_INVALID', async () => {
     await fs.mkdir(path.join(tmpDir, '.scout'));
     await fs.writeFile(path.join(tmpDir, '.scout', 'index.json'), '{invalid json}');
-    
-    await expect(readIndex(tmpDir)).rejects.toThrowError(
-      new ScoutError('INDEX_INVALID')
-    );
+
+    await expect(readIndex(tmpDir)).rejects.toThrowError(new ScoutError('INDEX_INVALID'));
   });
 
   it('schemaVersion: 1 throws INDEX_SCHEMA_MISMATCH', async () => {
     await fs.mkdir(path.join(tmpDir, '.scout'));
-    await fs.writeFile(path.join(tmpDir, '.scout', 'index.json'), JSON.stringify({ schemaVersion: 1 }));
-    
-    await expect(readIndex(tmpDir)).rejects.toThrowError(
-      new ScoutError('INDEX_SCHEMA_MISMATCH')
+    await fs.writeFile(
+      path.join(tmpDir, '.scout', 'index.json'),
+      JSON.stringify({ schemaVersion: 1 }),
     );
+
+    await expect(readIndex(tmpDir)).rejects.toThrowError(new ScoutError('INDEX_SCHEMA_MISMATCH'));
   });
-  
+
   it('missing index throws INDEX_MISSING', async () => {
-    await expect(readIndex(tmpDir)).rejects.toThrowError(
-      new ScoutError('INDEX_MISSING')
-    );
+    await expect(readIndex(tmpDir)).rejects.toThrowError(new ScoutError('INDEX_MISSING'));
   });
 });

@@ -3,12 +3,14 @@
 Project: playwright-scout — static index of a Playwright suite + agent skill. Full spec: docs/SPEC.md.
 
 ## Commands
+
 - Install: \`npm ci\`
 - Full check (run before every commit): \`npm run check\`
-- Tests only: \`npm test\`   · Build: \`npm run build\`
+- Tests only: \`npm test\` · Build: \`npm run build\`
 - Try the CLI: \`node packages/cli/dist/bin.js map --root fixtures/sample-suite\`
 
 ## Rules
+
 - ESM only. Relative imports in source end with \`.js\`. Use \`import type\` for types.
 - \`core\` never prints, never exits, never executes analysed code. Only \`cli\` prints.
 - All paths in output are POSIX and relative to the root. Sort with code-unit comparison, never localeCompare.
@@ -18,4 +20,5 @@ Project: playwright-scout — static index of a Playwright suite + agent skill. 
 - Never run \`npm publish\`.
 
 ## Layout
+
 packages/core = library, packages/cli = commands, skills/ = SKILL.md, fixtures/sample-suite = test input.

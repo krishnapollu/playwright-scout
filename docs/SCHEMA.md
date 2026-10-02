@@ -4,19 +4,19 @@ The generated `.scout/index.json` uses schema version `2`. `readIndex()` validat
 
 ## Top-Level Fields
 
-| Field | Meaning |
-|---|---|
-| `schemaVersion` | Index format version, currently `2` |
-| `generator` | Generator name and package version |
-| `generatedAt` | ISO timestamp, or `null` for deterministic builds |
-| `project` | Config path, test directory/matches, Playwright projects, language, helper directories |
-| `stats` | Counts for specs, tests, helpers, methods, page objects, fixtures, tags, parsed/skipped files |
-| `specs` | Spec file path, test count, and tags |
-| `tests` | Test ID, source position, title, suite path, modifiers, tags, fixtures, helper calls, and navigation URLs |
-| `helpers` | Exported function, class, and constant metadata; classes include public/protected methods |
-| `fixtures` | Fixture name, scope, options, dependencies, extended test object, and `providesHelperIds` for proven direct `use(...)` providers |
-| `tags` | Tag names and number of tests carrying each tag |
-| `diagnostics` | Static-analysis warnings and informational messages |
+| Field           | Meaning                                                                                                                          |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `schemaVersion` | Index format version, currently `2`                                                                                              |
+| `generator`     | Generator name and package version                                                                                               |
+| `generatedAt`   | ISO timestamp, or `null` for deterministic builds                                                                                |
+| `project`       | Config path, test directory/matches, Playwright projects, language, helper directories                                           |
+| `stats`         | Counts for specs, tests, helpers, methods, page objects, fixtures, tags, parsed/skipped files                                    |
+| `specs`         | Spec file path, test count, and tags                                                                                             |
+| `tests`         | Test ID, source position, title, suite path, modifiers, tags, fixtures, helper calls, and navigation URLs                        |
+| `helpers`       | Exported function, class, and constant metadata; classes include public/protected methods                                        |
+| `fixtures`      | Fixture name, scope, options, dependencies, extended test object, and `providesHelperIds` for proven direct `use(...)` providers |
+| `tags`          | Tag names and number of tests carrying each tag                                                                                  |
+| `diagnostics`   | Static-analysis warnings and informational messages                                                                              |
 
 ## IDs
 

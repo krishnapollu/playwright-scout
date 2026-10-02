@@ -20,20 +20,38 @@ describe('tokenize', () => {
 
 describe('searchIndex', () => {
   it('ranks the coupon method and constant ahead of the matching test', () => {
-    expect(searchIndex(index, 'coupon').slice(0, 2).map((result) => result.id)).toEqual([
+    expect(
+      searchIndex(index, 'coupon')
+        .slice(0, 2)
+        .map((result) => result.id),
+    ).toEqual([
       'helper:pages/checkout.page.ts#CheckoutPage.applyCoupon',
       'helper:utils/data.ts#COUPON_CODE',
     ]);
   });
 
   it('filters candidates before scoring', () => {
-    expect(searchIndex(index, 'coupon', { kind: 'method' }).every((result) => result.kind === 'method')).toBe(true);
+    expect(
+      searchIndex(index, 'coupon', { kind: 'method' }).every((result) => result.kind === 'method'),
+    ).toBe(true);
   });
 
   it('finds login and coupon concepts through synonyms', () => {
-    expect(searchIndex(index, 'sign in').some((result) => result.id === 'helper:pages/login.page.ts#LoginPage')).toBe(true);
-    expect(searchIndex(index, 'discount').some((result) => result.id === 'helper:pages/checkout.page.ts#CheckoutPage.applyCoupon')).toBe(true);
-    expect(searchIndex(index, 'authenticate').some((result) => result.id === 'helper:pages/login.page.ts#LoginPage')).toBe(true);
+    expect(
+      searchIndex(index, 'sign in').some(
+        (result) => result.id === 'helper:pages/login.page.ts#LoginPage',
+      ),
+    ).toBe(true);
+    expect(
+      searchIndex(index, 'discount').some(
+        (result) => result.id === 'helper:pages/checkout.page.ts#CheckoutPage.applyCoupon',
+      ),
+    ).toBe(true);
+    expect(
+      searchIndex(index, 'authenticate').some(
+        (result) => result.id === 'helper:pages/login.page.ts#LoginPage',
+      ),
+    ).toBe(true);
   });
 });
 

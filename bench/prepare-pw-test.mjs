@@ -36,7 +36,8 @@ async function copyAllowed(source, destination) {
   if (info.isDirectory()) {
     await mkdir(destination, { recursive: true });
     for (const entry of (await readdir(source)).sort()) {
-      if (entry.startsWith('.')) throw new Error(`Hidden file not allowlisted: ${path.join(source, entry)}`);
+      if (entry.startsWith('.'))
+        throw new Error(`Hidden file not allowlisted: ${path.join(source, entry)}`);
       await copyAllowed(path.join(source, entry), path.join(destination, entry));
     }
   } else if (info.isFile()) {
@@ -54,7 +55,10 @@ async function fileHashes(root, relative = '') {
     const absolute = path.join(root, item);
     const info = await lstat(absolute);
     if (info.isDirectory()) Object.assign(result, await fileHashes(root, item));
-    else if (info.isFile()) result[item.split(path.sep).join('/')] = createHash('sha256').update(await readFile(absolute)).digest('hex');
+    else if (info.isFile())
+      result[item.split(path.sep).join('/')] = createHash('sha256')
+        .update(await readFile(absolute))
+        .digest('hex');
     else throw new Error(`Unsupported file type: ${absolute}`);
   }
   return result;
@@ -80,7 +84,10 @@ async function main() {
   const scout = await fileHashes(path.join(outputRoot, 'scout'));
   if (JSON.stringify(control) !== JSON.stringify(scout)) throw new Error('Arm snapshots differ');
   const manifest = { source: sourceRoot, files: control };
-  await writeFile(path.join(outputRoot, 'source-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  await writeFile(
+    path.join(outputRoot, 'source-manifest.json'),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+  );
   process.stdout.write(`${outputRoot}\n`);
 }
 

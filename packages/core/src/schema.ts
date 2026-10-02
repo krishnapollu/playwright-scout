@@ -129,7 +129,7 @@ export const ProjectInfoSchema = z.object({
     z.object({
       dir: z.string(),
       count: z.number(),
-    })
+    }),
   ),
 });
 export type ProjectInfo = z.infer<typeof ProjectInfoSchema>;

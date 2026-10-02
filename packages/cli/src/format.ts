@@ -17,15 +17,24 @@ function truncate(line: string, limit = 200): string {
 
 export function formatFindResults(query: string, results: FindResult[]): string {
   if (results.length === 0) return `scout: no matches for "${query}"`;
-  return results.map((result) => {
-    const details = [`${result.kind.padEnd(8)} ${result.label}`, `${result.file}:${result.line}`];
-    if (result.usedBySpecCount > 0 && (result.kind === 'function' || result.kind === 'class' || result.kind === 'constant' || result.kind === 'method')) {
-      details.push(`used in ${result.usedBySpecCount} specs`);
-    }
-    if (result.kind === 'test' && result.tags && result.tags.length > 0) details.push(`tags: ${result.tags.join(',')}`);
-    const summary = result.summary ? ` — ${result.summary}` : '';
-    return truncate(`${details[0]}  ${details.slice(1).join('  ')}${summary}`);
-  }).join('\n');
+  return results
+    .map((result) => {
+      const details = [`${result.kind.padEnd(8)} ${result.label}`, `${result.file}:${result.line}`];
+      if (
+        result.usedBySpecCount > 0 &&
+        (result.kind === 'function' ||
+          result.kind === 'class' ||
+          result.kind === 'constant' ||
+          result.kind === 'method')
+      ) {
+        details.push(`used in ${result.usedBySpecCount} specs`);
+      }
+      if (result.kind === 'test' && result.tags && result.tags.length > 0)
+        details.push(`tags: ${result.tags.join(',')}`);
+      const summary = result.summary ? ` — ${result.summary}` : '';
+      return truncate(`${details[0]}  ${details.slice(1).join('  ')}${summary}`);
+    })
+    .join('\n');
 }
 
 export function formatShowEntry(index: Index, entry: Record<string, unknown>): string {
@@ -38,16 +47,22 @@ export function formatShowEntry(index: Index, entry: Record<string, unknown>): s
     if (helper.returns) lines.push(`returns: ${helper.returns}`);
     if (helper.extends) lines.push(`extends: ${helper.extends}`);
     lines.push(`category: ${helper.category}`);
-    if (helper.methods.length > 0) lines.push(`methods: ${helper.methods.map((method) => `${method.name}(${method.params ?? ''})`).join(', ')}`);
+    if (helper.methods.length > 0)
+      lines.push(
+        `methods: ${helper.methods.map((method) => `${method.name}(${method.params ?? ''})`).join(', ')}`,
+      );
     if (helper.navigatesTo.length > 0) lines.push(`navigatesTo: ${helper.navigatesTo.join(', ')}`);
     lines.push(`used in ${helper.usedBySpecCount} specs`);
-    if (helper.referencedByFiles.length > 0) lines.push(`referenced by: ${helper.referencedByFiles.slice(0, 10).join(', ')}`);
+    if (helper.referencedByFiles.length > 0)
+      lines.push(`referenced by: ${helper.referencedByFiles.slice(0, 10).join(', ')}`);
     return lines.join('\n');
   }
 
   if ('visibility' in entry) {
     const method = entry as unknown as Index['helpers'][number]['methods'][number];
-    const owner = index.helpers.find((helper) => helper.methods.some((candidate) => candidate.id === method.id));
+    const owner = index.helpers.find((helper) =>
+      helper.methods.some((candidate) => candidate.id === method.id),
+    );
     lines.push(`${owner?.name ?? ''}.${method.name}(${method.params ?? ''})`);
     if (method.doc) lines.push(method.doc);
     if (owner) lines.push(`class: ${owner.id}`, `${owner.file}:${owner.line}`);
@@ -56,7 +71,11 @@ export function formatShowEntry(index: Index, entry: Record<string, unknown>): s
 
   if ('suitePath' in entry) {
     const test = entry as unknown as Index['tests'][number];
-    lines.push(test.title ?? 'test', `suite: ${test.suitePath.join(' > ')}`, `${test.file}:${test.line}`);
+    lines.push(
+      test.title ?? 'test',
+      `suite: ${test.suitePath.join(' > ')}`,
+      `${test.file}:${test.line}`,
+    );
     if (test.modifiers.length > 0) lines.push(`modifiers: ${test.modifiers.join(', ')}`);
     if (test.tags.length > 0) lines.push(`tags: ${test.tags.join(', ')}`);
     if (test.fixtures.length > 0) lines.push(`fixtures: ${test.fixtures.join(', ')}`);

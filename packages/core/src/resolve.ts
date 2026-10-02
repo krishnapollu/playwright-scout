@@ -46,7 +46,12 @@ function resolveCandidateFile(base: string, root: string): string | null {
   };
 
   const ext = path.extname(base);
-  const jsExtensions: Record<string, string> = { '.js': '.ts', '.mjs': '.mts', '.cjs': '.cts', '.jsx': '.tsx' };
+  const jsExtensions: Record<string, string> = {
+    '.js': '.ts',
+    '.mjs': '.mts',
+    '.cjs': '.cts',
+    '.jsx': '.tsx',
+  };
   if (ext in jsExtensions) {
     const withoutExt = base.slice(0, -ext.length);
     append(withoutExt + jsExtensions[ext]);
@@ -69,8 +74,18 @@ function resolveCandidateFile(base: string, root: string): string | null {
   return null;
 }
 
-export function resolveSpecifier(fromFile: string, specifier: string, aliasConfig: TsAliasConfig, root = process.cwd()): string | null {
-  if (!specifier || specifier.startsWith('node:') || specifier.startsWith('http:') || specifier.startsWith('https:')) {
+export function resolveSpecifier(
+  fromFile: string,
+  specifier: string,
+  aliasConfig: TsAliasConfig,
+  root = process.cwd(),
+): string | null {
+  if (
+    !specifier ||
+    specifier.startsWith('node:') ||
+    specifier.startsWith('http:') ||
+    specifier.startsWith('https:')
+  ) {
     return null;
   }
 
@@ -132,7 +147,14 @@ export function resolveExportFromFacts(
     if (entry.exportName === exportName && entry.localName) {
       if (!entry.from) return { file, localName: entry.localName };
       const target = resolve(file, entry.from);
-      if (target) return resolveExportFromFacts(factsByFile, resolve, target, entry.importedName ?? entry.localName, seen);
+      if (target)
+        return resolveExportFromFacts(
+          factsByFile,
+          resolve,
+          target,
+          entry.importedName ?? entry.localName,
+          seen,
+        );
     }
   }
 
@@ -146,7 +168,9 @@ export function resolveExportFromFacts(
     }
   }
 
-  const anonymousDefault = facts.exports.find((entry) => entry.exportName === 'default' && entry.localName === null);
+  const anonymousDefault = facts.exports.find(
+    (entry) => entry.exportName === 'default' && entry.localName === null,
+  );
   if (exportName === 'default' && anonymousDefault) return { file, localName: null };
 
   return null;

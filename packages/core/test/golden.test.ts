@@ -189,16 +189,32 @@ describe('fixtures', () => {
   it('finds the three fixtures from .extend()', () => {
     const byName = Object.fromEntries(index.fixtures.map((f) => [f.name, f]));
     expect(Object.keys(byName).sort()).toEqual(['adminToken', 'checkoutPage', 'loginPage']);
-    expect(byName['loginPage']).toMatchObject({ scope: 'test', auto: false, dependsOn: ['page'], testObject: 'test' });
-    expect(byName['loginPage']?.providesHelperIds).toEqual(['helper:pages/login.page.ts#LoginPage']);
-    expect(byName['checkoutPage']?.providesHelperIds).toEqual(['helper:pages/checkout.page.ts#CheckoutPage']);
-    expect(byName['adminToken']).toMatchObject({ scope: 'worker', auto: true, dependsOn: [], testObject: 'test' });
+    expect(byName['loginPage']).toMatchObject({
+      scope: 'test',
+      auto: false,
+      dependsOn: ['page'],
+      testObject: 'test',
+    });
+    expect(byName['loginPage']?.providesHelperIds).toEqual([
+      'helper:pages/login.page.ts#LoginPage',
+    ]);
+    expect(byName['checkoutPage']?.providesHelperIds).toEqual([
+      'helper:pages/checkout.page.ts#CheckoutPage',
+    ]);
+    expect(byName['adminToken']).toMatchObject({
+      scope: 'worker',
+      auto: true,
+      dependsOn: [],
+      testObject: 'test',
+    });
   });
 });
 
 describe('diagnostics', () => {
   it('reports the broken file and keeps going', () => {
-    expect(index.diagnostics.some((d) => d.code === 'PARSE_ERROR' && d.file === 'tests/broken.spec.ts')).toBe(true);
+    expect(
+      index.diagnostics.some((d) => d.code === 'PARSE_ERROR' && d.file === 'tests/broken.spec.ts'),
+    ).toBe(true);
     expect(index.diagnostics.some((d) => d.code === 'DYNAMIC_TITLE')).toBe(true);
   });
 });
@@ -211,7 +227,9 @@ describe('search and show', () => {
   });
 
   it('find "login" has LoginPage.login in the top 3', () => {
-    const top3 = searchIndex(index, 'login').slice(0, 3).map((r) => r.id);
+    const top3 = searchIndex(index, 'login')
+      .slice(0, 3)
+      .map((r) => r.id);
     expect(top3).toContain('helper:pages/login.page.ts#LoginPage.login');
   });
 

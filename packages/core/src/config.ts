@@ -49,8 +49,20 @@ function extractObjectLiteral(
   diag: Diagnostic[],
   relPath: string,
   sf: ts.SourceFile,
-): { testDir?: string; testDirLine?: number; testDirLiteral?: boolean; testMatch?: string[] | null; projects?: string[] } {
-  const result: { testDir?: string; testDirLine?: number; testDirLiteral?: boolean; testMatch?: string[] | null; projects?: string[] } = {};
+): {
+  testDir?: string;
+  testDirLine?: number;
+  testDirLiteral?: boolean;
+  testMatch?: string[] | null;
+  projects?: string[];
+} {
+  const result: {
+    testDir?: string;
+    testDirLine?: number;
+    testDirLiteral?: boolean;
+    testMatch?: string[] | null;
+    projects?: string[];
+  } = {};
 
   for (const prop of obj.properties) {
     if (!ts.isPropertyAssignment(prop)) continue;
@@ -65,10 +77,19 @@ function extractObjectLiteral(
         result.testDirLiteral = true;
       } else {
         const line = sf.getLineAndCharacterOfPosition(prop.initializer.getStart(sf)).line + 1;
-        diag.push({ code: 'CONFIG_DYNAMIC', severity: 'info', message: 'testDir is dynamic', file: relPath, line });
+        diag.push({
+          code: 'CONFIG_DYNAMIC',
+          severity: 'info',
+          message: 'testDir is dynamic',
+          file: relPath,
+          line,
+        });
       }
     } else if (key === 'testMatch') {
-      if (ts.isStringLiteral(prop.initializer) || ts.isNoSubstitutionTemplateLiteral(prop.initializer)) {
+      if (
+        ts.isStringLiteral(prop.initializer) ||
+        ts.isNoSubstitutionTemplateLiteral(prop.initializer)
+      ) {
         result.testMatch = [prop.initializer.text];
       } else if (ts.isArrayLiteralExpression(prop.initializer)) {
         const strs: string[] = [];
@@ -81,11 +102,23 @@ function extractObjectLiteral(
         result.testMatch = allLit ? strs : null;
         if (!allLit) {
           const line = sf.getLineAndCharacterOfPosition(prop.initializer.getStart(sf)).line + 1;
-          diag.push({ code: 'CONFIG_DYNAMIC', severity: 'info', message: 'testMatch contains non-literal', file: relPath, line });
+          diag.push({
+            code: 'CONFIG_DYNAMIC',
+            severity: 'info',
+            message: 'testMatch contains non-literal',
+            file: relPath,
+            line,
+          });
         }
       } else {
         const line = sf.getLineAndCharacterOfPosition(prop.initializer.getStart(sf)).line + 1;
-        diag.push({ code: 'CONFIG_DYNAMIC', severity: 'info', message: 'testMatch is dynamic', file: relPath, line });
+        diag.push({
+          code: 'CONFIG_DYNAMIC',
+          severity: 'info',
+          message: 'testMatch is dynamic',
+          file: relPath,
+          line,
+        });
         result.testMatch = null;
       }
     } else if (key === 'projects') {
@@ -111,9 +144,7 @@ function extractObjectLiteral(
 }
 
 /** Finds the config object literal from the source file (handles defineConfig wrapper and identifier). */
-function findConfigObj(
-  sf: ts.SourceFile,
-): ts.ObjectLiteralExpression | null {
+function findConfigObj(sf: ts.SourceFile): ts.ObjectLiteralExpression | null {
   for (const stmt of sf.statements) {
     // export default ...
     if (!ts.isExportAssignment(stmt) || stmt.isExportEquals) continue;
@@ -156,8 +187,22 @@ export function readConfig(root: string): ConfigResult {
   const configFull = findConfigFile(root);
 
   if (!configFull) {
-    diag.push({ code: 'CONFIG_NOT_FOUND', severity: 'info', message: 'No playwright config found', file: null, line: null });
-    return { configFile: null, testDir: '.', testDirLine: null, testDirLiteral: false, testMatch: null, playwrightProjects: [], diagnostics: diag };
+    diag.push({
+      code: 'CONFIG_NOT_FOUND',
+      severity: 'info',
+      message: 'No playwright config found',
+      file: null,
+      line: null,
+    });
+    return {
+      configFile: null,
+      testDir: '.',
+      testDirLine: null,
+      testDirLiteral: false,
+      testMatch: null,
+      playwrightProjects: [],
+      diagnostics: diag,
+    };
   }
 
   const relPath = path.relative(root, configFull).split(path.sep).join('/');
@@ -166,8 +211,22 @@ export function readConfig(root: string): ConfigResult {
 
   const obj = findConfigObj(sf);
   if (!obj) {
-    diag.push({ code: 'CONFIG_DYNAMIC', severity: 'info', message: 'Config object could not be resolved statically', file: relPath, line: null });
-    return { configFile: relPath, testDir: '.', testDirLine: null, testDirLiteral: false, testMatch: null, playwrightProjects: [], diagnostics: diag };
+    diag.push({
+      code: 'CONFIG_DYNAMIC',
+      severity: 'info',
+      message: 'Config object could not be resolved statically',
+      file: relPath,
+      line: null,
+    });
+    return {
+      configFile: relPath,
+      testDir: '.',
+      testDirLine: null,
+      testDirLiteral: false,
+      testMatch: null,
+      playwrightProjects: [],
+      diagnostics: diag,
+    };
   }
 
   const extracted = extractObjectLiteral(obj, diag, relPath, sf);
@@ -191,10 +250,7 @@ export function readConfig(root: string): ConfigResult {
 
 /** Reads tsconfig paths from the nearest tsconfig.json (root then testDir). */
 export function readTsAliasConfig(root: string, testDir: string): TsAliasConfig {
-  const candidates = [
-    path.join(root, 'tsconfig.json'),
-    path.join(root, testDir, 'tsconfig.json'),
-  ];
+  const candidates = [path.join(root, 'tsconfig.json'), path.join(root, testDir, 'tsconfig.json')];
   for (const file of candidates) {
     if (!fs.existsSync(file)) continue;
     const host: ts.ParseConfigFileHost = {

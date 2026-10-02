@@ -20,7 +20,8 @@ function entries(index: Index): ShowEntry[] {
 function entryLabel(entry: ShowEntry): string {
   if ('methods' in entry) return entry.name;
   if ('visibility' in entry) return `${entry.id.slice(entry.id.lastIndexOf('#') + 1)}`;
-  if ('suitePath' in entry) return [...entry.suitePath, entry.title ?? ''].filter(Boolean).join(' > ');
+  if ('suitePath' in entry)
+    return [...entry.suitePath, entry.title ?? ''].filter(Boolean).join(' > ');
   return entry.name;
 }
 
@@ -37,10 +38,18 @@ export function resolveEntry(index: Index, id: string): EntryResolution {
   const exactId = all.filter((entry) => entry.id.toLowerCase() === normalized);
   if (exactId.length === 1) return { status: 'ok', entry: exactId[0]! };
 
-  const exactLabelOrSuffix = all.filter((entry) => entryLabel(entry).toLowerCase() === normalized || suffix(entry).toLowerCase() === normalized);
+  const exactLabelOrSuffix = all.filter(
+    (entry) =>
+      entryLabel(entry).toLowerCase() === normalized || suffix(entry).toLowerCase() === normalized,
+  );
   if (exactLabelOrSuffix.length === 1) return { status: 'ok', entry: exactLabelOrSuffix[0]! };
   if (exactLabelOrSuffix.length > 1) {
-    return { status: 'ambiguous', candidates: exactLabelOrSuffix.map((entry) => entry.id).sort((a, b) => a < b ? -1 : a > b ? 1 : 0) };
+    return {
+      status: 'ambiguous',
+      candidates: exactLabelOrSuffix
+        .map((entry) => entry.id)
+        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+    };
   }
 
   const queryTokens = tokenize(id);
@@ -50,7 +59,12 @@ export function resolveEntry(index: Index, id: string): EntryResolution {
   });
   if (tokenMatches.length === 0) return { status: 'not_found' };
   if (tokenMatches.length > 1) {
-    return { status: 'ambiguous', candidates: tokenMatches.map((entry) => entry.id).sort((a, b) => a < b ? -1 : a > b ? 1 : 0) };
+    return {
+      status: 'ambiguous',
+      candidates: tokenMatches
+        .map((entry) => entry.id)
+        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+    };
   }
   return { status: 'ok', entry: tokenMatches[0]! };
 }

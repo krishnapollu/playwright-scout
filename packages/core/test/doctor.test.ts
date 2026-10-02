@@ -9,7 +9,9 @@ const fixtureRoot = fileURLToPath(new URL('../../../fixtures/guidance-suite', im
 const temporaryRoots: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(temporaryRoots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    temporaryRoots.splice(0).map((root) => fs.rm(root, { recursive: true, force: true })),
+  );
 });
 
 async function rootWith(config?: string): Promise<string> {
@@ -23,13 +25,16 @@ describe('doctor', () => {
   it('reports a literal missing testDir with source evidence', () => {
     expect(doctor(fixtureRoot)).toEqual({
       command: 'doctor',
-      findings: [{
-        ruleId: 'config.test-dir-missing',
-        suggestion: 'The configured testDir does not exist. Check whether it is generated or whether the path should be updated.',
-        file: 'playwright.config.ts',
-        line: 3,
-        guideUrl: 'https://playwright.dev/docs/test-configuration',
-      }],
+      findings: [
+        {
+          ruleId: 'config.test-dir-missing',
+          suggestion:
+            'The configured testDir does not exist. Check whether it is generated or whether the path should be updated.',
+          file: 'playwright.config.ts',
+          line: 3,
+          guideUrl: 'https://playwright.dev/docs/test-configuration',
+        },
+      ],
       unknowns: [],
     });
   });
@@ -41,7 +46,9 @@ describe('doctor', () => {
   });
 
   it('still checks a literal testDir when another config field is dynamic', async () => {
-    const root = await rootWith("export default { testDir: './missing', testMatch: process.env.MATCH };");
+    const root = await rootWith(
+      "export default { testDir: './missing', testMatch: process.env.MATCH };",
+    );
     expect(doctor(root).findings.map((item) => item.ruleId)).toEqual(['config.test-dir-missing']);
   });
 

@@ -19,10 +19,12 @@ describe('linkFiles', () => {
       'utils/auth.ts',
       'utils/data.ts',
     ];
-    const factsByFile = new Map(files.map((file) => {
-      const text = fs.readFileSync(path.join(SAMPLE, file), 'utf8');
-      return [file, extractFacts(file, parseFile(file, text), file === 'tests/checkout.spec.ts')];
-    }));
+    const factsByFile = new Map(
+      files.map((file) => {
+        const text = fs.readFileSync(path.join(SAMPLE, file), 'utf8');
+        return [file, extractFacts(file, parseFile(file, text), file === 'tests/checkout.spec.ts')];
+      }),
+    );
     const diagnostics: Diagnostic[] = [];
     const linked = linkFiles(files, factsByFile, diagnostics, {
       root: SAMPLE,
@@ -39,7 +41,16 @@ describe('linkFiles', () => {
       'helper:utils/data.ts#COUPON_CODE',
     ]);
     expect(linked.helpers.find((entry) => entry.name === 'COUPON_CODE')?.usedBySpecCount).toBe(1);
-    expect(linked.helpers.find((entry) => entry.name === 'COUPON_CODE')?.referencedByFiles).toContain('tests/checkout.spec.ts');
-    expect(resolveSpecifier('tests/checkout.spec.ts', '../utils/data', readTsAliasConfig(SAMPLE, 'tests'), SAMPLE)).toBe('utils/data.ts');
+    expect(
+      linked.helpers.find((entry) => entry.name === 'COUPON_CODE')?.referencedByFiles,
+    ).toContain('tests/checkout.spec.ts');
+    expect(
+      resolveSpecifier(
+        'tests/checkout.spec.ts',
+        '../utils/data',
+        readTsAliasConfig(SAMPLE, 'tests'),
+        SAMPLE,
+      ),
+    ).toBe('utils/data.ts');
   });
 });

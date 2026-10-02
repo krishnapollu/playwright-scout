@@ -41,4 +41,3 @@ describe('readTsAliasConfig', () => {
     expect(r.baseUrl).toBeUndefined();
   });
 });
-

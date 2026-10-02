@@ -10,10 +10,10 @@ The checks below exercise static advice, not test execution, flakiness detection
 
 The same local checkouts used in [v0.2 evaluation](EVALUATION-v0.2.md) were inspected without running analyzed code or changing those repositories:
 
-| Suite | `doctor` | Single-file `review` |
-| --- | --- | --- |
-| Microsoft Playwright examples | No findings or unknowns | `tests/clock/clock.spec.ts`: no findings |
-| Checkly Playwright examples | No root config found; reported as unknown | `fixtures-rock/tests/example-1.spec.ts`: no findings |
+| Suite                         | `doctor`                                  | Single-file `review`                                 |
+| ----------------------------- | ----------------------------------------- | ---------------------------------------------------- |
+| Microsoft Playwright examples | No findings or unknowns                   | `tests/clock/clock.spec.ts`: no findings             |
+| Checkly Playwright examples   | No root config found; reported as unknown | `fixtures-rock/tests/example-1.spec.ts`: no findings |
 
 These empty results do **not** validate the suites or the recall of the rules. The rules intentionally match only a small, provable syntax subset.
 

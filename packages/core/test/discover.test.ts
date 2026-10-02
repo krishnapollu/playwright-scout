@@ -62,41 +62,76 @@ describe('resolveSpecifier and resolveExportFromFacts', () => {
   const SAMPLE = path.resolve(import.meta.dirname, '../../../fixtures/sample-suite');
 
   it('resolves relative and alias imports', () => {
-    expect(resolveSpecifier('fixtures/sample-suite/pages/index.ts', './login.page', {
-      baseUrl: undefined,
-      paths: undefined,
-      pathsBasePath: SAMPLE,
-    }, path.resolve(SAMPLE, '..', '..'))).toBe('fixtures/sample-suite/pages/login.page.ts');
+    expect(
+      resolveSpecifier(
+        'fixtures/sample-suite/pages/index.ts',
+        './login.page',
+        {
+          baseUrl: undefined,
+          paths: undefined,
+          pathsBasePath: SAMPLE,
+        },
+        path.resolve(SAMPLE, '..', '..'),
+      ),
+    ).toBe('fixtures/sample-suite/pages/login.page.ts');
 
-    expect(resolveSpecifier('fixtures/sample-suite/tests/login.spec.ts', '@utils/auth', {
-      baseUrl: undefined,
-      paths: { '@utils/*': ['utils/*'] },
-      pathsBasePath: SAMPLE,
-    }, path.resolve(SAMPLE, '..', '..'))).toBe('fixtures/sample-suite/utils/auth.ts');
+    expect(
+      resolveSpecifier(
+        'fixtures/sample-suite/tests/login.spec.ts',
+        '@utils/auth',
+        {
+          baseUrl: undefined,
+          paths: { '@utils/*': ['utils/*'] },
+          pathsBasePath: SAMPLE,
+        },
+        path.resolve(SAMPLE, '..', '..'),
+      ),
+    ).toBe('fixtures/sample-suite/utils/auth.ts');
   });
 
   it('resolves exports through barrel files', () => {
     const root = path.resolve(SAMPLE, '..', '..');
     const fileNames = ['pages/index.ts', 'pages/login.page.ts', 'pages/checkout.page.ts'];
-    const factsByFile = new Map(fileNames.map((file) => {
-      const text = fs.readFileSync(path.join(SAMPLE, file), 'utf8');
-      return [`fixtures/sample-suite/${file}`, extractFacts(file, parseFile(file, text), false)];
-    }));
-    const resolve = (from: string, specifier: string) => resolveSpecifier(from, specifier, {
-      baseUrl: undefined,
-      paths: undefined,
-      pathsBasePath: SAMPLE,
-    }, root);
+    const factsByFile = new Map(
+      fileNames.map((file) => {
+        const text = fs.readFileSync(path.join(SAMPLE, file), 'utf8');
+        return [`fixtures/sample-suite/${file}`, extractFacts(file, parseFile(file, text), false)];
+      }),
+    );
+    const resolve = (from: string, specifier: string) =>
+      resolveSpecifier(
+        from,
+        specifier,
+        {
+          baseUrl: undefined,
+          paths: undefined,
+          pathsBasePath: SAMPLE,
+        },
+        root,
+      );
 
-    expect(resolveExportFromFacts(factsByFile, resolve, 'fixtures/sample-suite/pages/index.ts', 'LoginPage')).toMatchObject({
+    expect(
+      resolveExportFromFacts(
+        factsByFile,
+        resolve,
+        'fixtures/sample-suite/pages/index.ts',
+        'LoginPage',
+      ),
+    ).toMatchObject({
       file: 'fixtures/sample-suite/pages/login.page.ts',
       localName: 'LoginPage',
     });
 
-    expect(resolveExportFromFacts(factsByFile, resolve, 'fixtures/sample-suite/pages/index.ts', 'CheckoutPage')).toMatchObject({
+    expect(
+      resolveExportFromFacts(
+        factsByFile,
+        resolve,
+        'fixtures/sample-suite/pages/index.ts',
+        'CheckoutPage',
+      ),
+    ).toMatchObject({
       file: 'fixtures/sample-suite/pages/checkout.page.ts',
       localName: 'CheckoutPage',
     });
   });
 });
-

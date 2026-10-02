@@ -6,7 +6,7 @@ import { ScoutError } from './errors.js';
 export async function writeIndex(rootDir: string, index: Index): Promise<void> {
   const scoutDir = path.join(rootDir, '.scout');
   await fs.mkdir(scoutDir, { recursive: true });
-  
+
   const gitignorePath = path.join(scoutDir, '.gitignore');
   try {
     await fs.access(gitignorePath);

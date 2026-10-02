@@ -9,9 +9,6 @@ const githubRoot = 'https://github.com/krishnapollu/playwright-scout/blob/main/'
 const githubRawRoot = 'https://raw.githubusercontent.com/krishnapollu/playwright-scout/main/';
 const npmReadme = readme
   .replace(/src="(docs\/img\/[^"]+)"/g, (_, target) => `src="${githubRawRoot}${target}"`)
-  .replace(
-    /\]\((docs\/[^)]+|LICENSE)\)/g,
-    (_, target) => `](${githubRoot}${target})`,
-  );
+  .replace(/\]\((docs\/[^)]+|LICENSE)\)/g, (_, target) => `](${githubRoot}${target})`);
 
 await fs.writeFile(path.join(cliRoot, 'README.md'), npmReadme, 'utf8');

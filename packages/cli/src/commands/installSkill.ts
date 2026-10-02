@@ -66,7 +66,8 @@ export async function installSkillCommand(options: InstallSkillOptions = {}): Pr
     throw new Error('`--global` is only valid with `--target claude`.');
   }
 
-  const targets: Exclude<SkillTarget, 'all'>[] = target === 'all' ? ['claude', 'agents', 'github', 'cursor', 'qwen'] : [target];
+  const targets: Exclude<SkillTarget, 'all'>[] =
+    target === 'all' ? ['claude', 'agents', 'github', 'cursor', 'qwen'] : [target];
   const source = await findSkillSource();
   const lines: string[] = [];
 

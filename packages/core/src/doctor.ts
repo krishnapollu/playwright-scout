@@ -33,13 +33,16 @@ export function doctor(root: string): DoctorResult {
     const target = path.resolve(resolvedRoot, config.testDir);
     const relative = path.relative(resolvedRoot, target);
     if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
-      unknowns.push('The configured testDir is outside the project root; Scout did not inspect it.');
+      unknowns.push(
+        'The configured testDir is outside the project root; Scout did not inspect it.',
+      );
     } else {
       try {
         if (!fs.statSync(target).isDirectory()) {
           findings.push({
             ruleId: 'config.test-dir-missing',
-            suggestion: 'The configured testDir is not a directory. Check whether it is generated or whether the path should be updated.',
+            suggestion:
+              'The configured testDir is not a directory. Check whether it is generated or whether the path should be updated.',
             file: config.configFile,
             line: config.testDirLine,
             guideUrl: 'https://playwright.dev/docs/test-configuration',
@@ -49,7 +52,8 @@ export function doctor(root: string): DoctorResult {
         if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
           findings.push({
             ruleId: 'config.test-dir-missing',
-            suggestion: 'The configured testDir does not exist. Check whether it is generated or whether the path should be updated.',
+            suggestion:
+              'The configured testDir does not exist. Check whether it is generated or whether the path should be updated.',
             file: config.configFile,
             line: config.testDirLine,
             guideUrl: 'https://playwright.dev/docs/test-configuration',
@@ -60,7 +64,11 @@ export function doctor(root: string): DoctorResult {
       }
     }
   }
-  if (config.configFile && config.testDirLine === null && config.diagnostics.some((item) => item.code === 'CONFIG_DYNAMIC')) {
+  if (
+    config.configFile &&
+    config.testDirLine === null &&
+    config.diagnostics.some((item) => item.code === 'CONFIG_DYNAMIC')
+  ) {
     unknowns.push('Some Playwright config values could not be determined statically.');
   }
   return { command: 'doctor', findings, unknowns };

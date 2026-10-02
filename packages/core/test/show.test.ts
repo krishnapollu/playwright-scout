@@ -12,7 +12,9 @@ beforeAll(async () => {
 
 describe('resolveEntry', () => {
   it('resolves a full label or unique ID suffix', () => {
-    expect(showEntry(index, 'LoginPage.login')?.id).toBe('helper:pages/login.page.ts#LoginPage.login');
+    expect(showEntry(index, 'LoginPage.login')?.id).toBe(
+      'helper:pages/login.page.ts#LoginPage.login',
+    );
     expect(resolveEntry(index, 'uniqueEmail')).toMatchObject({
       status: 'ok',
       entry: { id: 'helper:utils/auth.ts#uniqueEmail' },

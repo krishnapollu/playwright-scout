@@ -3,7 +3,9 @@ import { getParseErrors, parseFile } from '../src/parse.js';
 
 describe('parseFile', () => {
   it('selects the source kind from the file extension', () => {
-    expect(getParseErrors(parseFile('component.tsx', 'const View = () => <div />;'))).toHaveLength(0);
+    expect(getParseErrors(parseFile('component.tsx', 'const View = () => <div />;'))).toHaveLength(
+      0,
+    );
     expect(getParseErrors(parseFile('legacy.js', 'const value = 1;'))).toHaveLength(0);
   });
 

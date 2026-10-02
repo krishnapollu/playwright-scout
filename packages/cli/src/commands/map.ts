@@ -19,8 +19,19 @@ export interface CommandResult {
 }
 
 const ignoredDirectories = new Set([
-  'node_modules', 'dist', 'build', 'out', '.git', '.scout', 'playwright-report',
-  'test-results', 'blob-report', 'coverage', '.next', '.turbo', '.cache',
+  'node_modules',
+  'dist',
+  'build',
+  'out',
+  '.git',
+  '.scout',
+  'playwright-report',
+  'test-results',
+  'blob-report',
+  'coverage',
+  '.next',
+  '.turbo',
+  '.cache',
 ]);
 const sourceExtension = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 
@@ -41,12 +52,21 @@ async function writeCustomIndex(filePath: string, root: string, index: unknown):
   }
 }
 
-async function collectSourceFiles(root: string, currentDir = root, files: string[] = []): Promise<string[]> {
+async function collectSourceFiles(
+  root: string,
+  currentDir = root,
+  files: string[] = [],
+): Promise<string[]> {
   const entries = await fs.readdir(currentDir, { withFileTypes: true }).catch(() => []);
   for (const entry of entries) {
     if (entry.isDirectory()) {
-      if (!ignoredDirectories.has(entry.name)) await collectSourceFiles(root, path.join(currentDir, entry.name), files);
-    } else if (entry.isFile() && sourceExtension.test(entry.name) && !entry.name.endsWith('.d.ts')) {
+      if (!ignoredDirectories.has(entry.name))
+        await collectSourceFiles(root, path.join(currentDir, entry.name), files);
+    } else if (
+      entry.isFile() &&
+      sourceExtension.test(entry.name) &&
+      !entry.name.endsWith('.d.ts')
+    ) {
       files.push(path.join(currentDir, entry.name));
     }
   }
@@ -60,12 +80,14 @@ export async function isUpToDate(root: string, indexPath: string): Promise<boole
     const text = await fs.readFile(indexPath, 'utf8');
     const parsed = IndexSchema.safeParse(JSON.parse(text));
     if (!parsed.success) return false;
-    indexedFiles = [...new Set([
-      ...parsed.data.specs.map((entry) => entry.file),
-      ...parsed.data.helpers.map((entry) => entry.file),
-      ...parsed.data.fixtures.map((entry) => entry.file),
-      ...(parsed.data.project.configFile ? [parsed.data.project.configFile] : []),
-    ])];
+    indexedFiles = [
+      ...new Set([
+        ...parsed.data.specs.map((entry) => entry.file),
+        ...parsed.data.helpers.map((entry) => entry.file),
+        ...parsed.data.fixtures.map((entry) => entry.file),
+        ...(parsed.data.project.configFile ? [parsed.data.project.configFile] : []),
+      ]),
+    ];
     indexMtime = (await fs.stat(indexPath)).mtimeMs;
   } catch {
     return false;
@@ -82,13 +104,16 @@ export async function isUpToDate(root: string, indexPath: string): Promise<boole
   return true;
 }
 
-export async function mapCommand(root: string, options: MapCommandOptions = {}): Promise<CommandResult> {
+export async function mapCommand(
+  root: string,
+  options: MapCommandOptions = {},
+): Promise<CommandResult> {
   const startedAt = performance.now();
   const absoluteRoot = path.resolve(root);
   const indexPath = path.resolve(absoluteRoot, options.out ?? '.scout/index.json');
   const relativeIndexPath = posix(path.relative(absoluteRoot, indexPath));
 
-  if (options.ifStale && await isUpToDate(absoluteRoot, indexPath)) {
+  if (options.ifStale && (await isUpToDate(absoluteRoot, indexPath))) {
     return { stdout: options.quiet ? '' : 'scout: index is up to date', stderr: '', exitCode: 0 };
   }
 
@@ -112,22 +137,33 @@ export async function mapCommand(root: string, options: MapCommandOptions = {}):
     indexPath: relativeIndexPath,
   };
 
-  const warnings = index.diagnostics.filter((diagnostic) => diagnostic.severity === 'warn' || diagnostic.severity === 'error');
-  const stderr = options.verbose ? index.diagnostics.map((diagnostic) =>
-    `${diagnostic.severity} ${diagnostic.code} ${diagnostic.file ?? '-'}:${diagnostic.line ?? '-'} ${diagnostic.message}`,
-  ).join('\n') : '';
+  const warnings = index.diagnostics.filter(
+    (diagnostic) => diagnostic.severity === 'warn' || diagnostic.severity === 'error',
+  );
+  const stderr = options.verbose
+    ? index.diagnostics
+        .map(
+          (diagnostic) =>
+            `${diagnostic.severity} ${diagnostic.code} ${diagnostic.file ?? '-'}:${diagnostic.line ?? '-'} ${diagnostic.message}`,
+        )
+        .join('\n')
+    : '';
   if (options.json) return { stdout: JSON.stringify(output), stderr, exitCode: 0 };
   if (options.quiet) return { stdout: '', stderr, exitCode: 0 };
 
   const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);
-  const pageObjects = index.stats.pageObjects > 0 ? ` (${index.stats.pageObjects} page objects)` : '';
+  const pageObjects =
+    index.stats.pageObjects > 0 ? ` (${index.stats.pageObjects} page objects)` : '';
   const lines = [
     `scout: indexed ${index.stats.specFiles} spec files, ${index.stats.tests} tests, ${index.stats.helpers} helpers${pageObjects}, ${index.stats.fixtures} fixtures in ${elapsed}s`,
     `index: ${relativeIndexPath} (schema v${index.schemaVersion})`,
   ];
   if (index.project.helperDirs.length > 0) {
-    lines.push(`helper dirs: ${index.project.helperDirs.map(({ dir, count }) => `${dir} (${count})`).join(', ')}`);
+    lines.push(
+      `helper dirs: ${index.project.helperDirs.map(({ dir, count }) => `${dir} (${count})`).join(', ')}`,
+    );
   }
-  if (warnings.length > 0) lines.push(`warnings: ${warnings.length}${options.verbose ? '' : ' (use --verbose to list)'}`);
+  if (warnings.length > 0)
+    lines.push(`warnings: ${warnings.length}${options.verbose ? '' : ' (use --verbose to list)'}`);
   return { stdout: lines.join('\n'), stderr, exitCode: 0 };
 }

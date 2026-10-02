@@ -82,7 +82,13 @@ export async function discoverFiles(
     const stat = await fs.stat(abs).catch(() => null);
     if (!stat) continue;
     if (stat.size > FILE_SIZE_LIMIT) {
-      diag.push({ code: 'FILE_TOO_LARGE', severity: 'warn', message: `File exceeds 1 MiB: ${rel}`, file: rel, line: null });
+      diag.push({
+        code: 'FILE_TOO_LARGE',
+        severity: 'warn',
+        message: `File exceeds 1 MiB: ${rel}`,
+        file: rel,
+        line: null,
+      });
       filesSkipped++;
       continue;
     }
@@ -107,7 +113,12 @@ export async function discoverFiles(
   }
 
   if (extraIncludes.length > 0) {
-    const extras = await fg(extraIncludes, { cwd: root, ignore: IGNORE, absolute: false, onlyFiles: true });
+    const extras = await fg(extraIncludes, {
+      cwd: root,
+      ignore: IGNORE,
+      absolute: false,
+      onlyFiles: true,
+    });
     for (const rel of extras) {
       const normalized = rel.split(path.sep).join('/');
       if (!normalized.endsWith('.d.ts') && !specSet.has(normalized)) supportSet.add(normalized);
