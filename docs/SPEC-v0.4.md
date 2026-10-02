@@ -1,6 +1,6 @@
 # playwright-scout v0.4 — Controlled agent evaluation (draft)
 
-Status: **two feasibility pairs on one task completed; planned pilot and main evaluation not completed**. See [the pilot report](PILOT-v0.4.md). This is an evaluation milestone, not a new Scout command or package release. The v0.1–v0.3 specifications remain the product contracts.
+Status: **two feasibility pairs on one task completed; further agent tests paused by the user**. The planned pilot and main evaluation are not completed. See [the pilot report](PILOT-v0.4.md) and the separate [next-phase product plan](PLAN-v0.5.md). This is an evaluation milestone, not a new Scout command or package release. The v0.1–v0.3 specifications remain the product contracts.
 
 ## 1. Decision to answer
 

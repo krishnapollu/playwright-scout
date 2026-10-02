@@ -70,3 +70,7 @@
 - [x] E3a Focused pilot refinement — Made Scout queries optional for obvious local edits and changed analogous-test selection to prefer more matched method calls, with a same-file tie-break. A regression test reproduces the prior add-to-cart/API-web misranking; the real `pw-test` context now cites the existing dress-search example. The optional Python skill validator lacks PyYAML, so frontmatter and the packaged skill copy were checked manually. `npm run check` passed with 102 tests.
 - [x] E3b Same-task follow-up — Ran a fresh capped Codex pair after `373ac3e`; both arms passed typecheck and the targeted live Chromium check. Scout's uncached-plus-output tokens were lower rather than higher, but the control agent ran the full products suite and saw much more output, so this is not evidence of causal token savings. Scout still invoked `map` and `context`; abstention remains unverified on this task. See `docs/PILOT-v0.4.md`.
 - [x] README presentation — Centered the logo, title, tagline, and badges in that order in both repository and package READMEs.
+
+## Next-phase product planning
+
+- [x] Draft direction — Recorded the token-conscious, coding-assistant-agnostic product milestones in `docs/PLAN-v0.5.md`: selective suite context, optional configurable business files, low-friction setup and Qwen support, plus a later evidence gate that measures wall-time components as well as tokens and quality. Further agent tests remain paused; no product behavior changed.
