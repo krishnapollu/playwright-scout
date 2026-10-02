@@ -12,11 +12,11 @@ Description: Extend the built-in synonym table for one clearly scoped domain voc
 
 Acceptance criteria: add exact and synonym ranking tests; synonym matches remain below equivalent exact matches; document the terms.
 
-## Investigate `find --kind` edge cases
+## Clarify `find --kind helper` result labels
 
-Description: Reproduce one real edge case where `find --kind` returns an unexpected result or wording.
+Description: `--kind helper` filters the helper collection, but matching results expose their subtype (`class`, `function`, or `constant`) as `kind`. Add a small CLI regression test and clarify this behavior in the CLI reference so users understand the filter and output labels.
 
-Acceptance criteria: add a minimal fixture and regression test, define the expected kind behavior, and keep unrelated kind filters unchanged. If no edge case can be reproduced, close with the investigation notes.
+Acceptance criteria: `find coupon --kind helper --json` on the sample suite has a test asserting a helper result and its subtype; `docs/CLI.md` explains the distinction; method and test filters remain unchanged.
 
 ## Score page-object method names
 
@@ -30,8 +30,8 @@ Description: Add a concise README example showing a page object, fixture, and sp
 
 Acceptance criteria: the example is runnable or clearly marked as illustrative, includes `map` and `find`, and does not claim unsupported runtime behavior.
 
-## Add CLI output-format coverage
+## Add `plan --json` output-format coverage
 
-Description: Add a regression test for one currently untested command's `--json` output contract.
+Description: `packages/cli/test/bin.test.ts` has no `plan` command coverage, including its `--json` output contract. Add a focused regression test using the sample suite.
 
-Acceptance criteria: test exit code and parseable JSON fields, use a checked-in fixture, and document any intentional output contract covered.
+Acceptance criteria: assert exit code 0 and parseable JSON with stable plan fields; use `fixtures/sample-suite`; do not change the JSON schema.
