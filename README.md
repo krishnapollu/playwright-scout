@@ -1,12 +1,14 @@
-# playwright-scout
+<p align="center"><img src="docs/img/logo.svg" alt="Scout logo" width="128"></p>
 
-<img src="docs/img/logo.svg" alt="Scout logo" width="128">
+<h1 align="center">playwright-scout</h1>
 
-> Give your coding agent a map of your Playwright suite.
+<p align="center">Give your coding agent a map of your Playwright suite.</p>
 
-[![CI](https://github.com/krishnapollu/playwright-scout/actions/workflows/ci.yml/badge.svg)](https://github.com/krishnapollu/playwright-scout/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/playwright-scout)](https://www.npmjs.com/package/playwright-scout)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <a href="https://github.com/krishnapollu/playwright-scout/actions/workflows/ci.yml"><img src="https://github.com/krishnapollu/playwright-scout/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://www.npmjs.com/package/playwright-scout"><img src="https://img.shields.io/npm/v/playwright-scout" alt="npm"></a>
+  <a href="https://github.com/krishnapollu/playwright-scout/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+</p>
 
 `playwright-scout` is an agent skill, static index, and search tool for Playwright projects. It helps coding agents understand existing page objects, helpers, fixtures, tests, tags, routes, and relationships before they change or extend a suite. It can also provide a bounded, source-backed brief for a task.
 
