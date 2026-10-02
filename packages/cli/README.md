@@ -135,11 +135,11 @@ Scout is intentionally focused on static discovery. It does not:
 
 Exported aliases of a reassigned `let` test object (for example, `let impl = a; impl = b; export const test = impl`) are still indexed as helpers.
 
-For the complete behavior and supported patterns, see the [v0.3 guidance specification](https://github.com/krishnapollu/playwright-scout/blob/main/docs/SPEC-v0.3.md), [v0.2 specification](https://github.com/krishnapollu/playwright-scout/blob/main/docs/SPEC-v0.2.md), and [evaluation notes](https://github.com/krishnapollu/playwright-scout/blob/main/docs/EVALUATION-v0.2.md). The [v0.1 specification](https://github.com/krishnapollu/playwright-scout/blob/main/docs/SPEC.md) remains the baseline for earlier commands.
+For the complete behavior and supported patterns, see the [v0.3 guidance specification](https://github.com/krishnapollu/playwright-scout/blob/main/docs/archive/SPEC-v0.3.md), [v0.2 specification](https://github.com/krishnapollu/playwright-scout/blob/main/docs/archive/SPEC-v0.2.md), and [evaluation notes](https://github.com/krishnapollu/playwright-scout/blob/main/docs/archive/EVALUATION-v0.2.md). The [v0.1 specification](https://github.com/krishnapollu/playwright-scout/blob/main/docs/SPEC.md) remains the baseline for earlier commands.
 
 ## Evaluation status
 
-The two feasibility pilots had inconsistent results; no efficiency or efficacy claim is made. See the [pilot report](https://github.com/krishnapollu/playwright-scout/blob/main/docs/PILOT-v0.4.md). Controlled agent runs are paused.
+The two feasibility pilots had inconsistent results; no efficiency or efficacy claim is made. See the [pilot report](https://github.com/krishnapollu/playwright-scout/blob/main/docs/archive/PILOT-v0.4.md). Controlled agent runs are paused.
 
 ## Development
 

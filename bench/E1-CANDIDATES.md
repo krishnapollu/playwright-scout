@@ -1,10 +1,10 @@
 # v0.4 E1 — Public-suite and pilot-task candidates
 
-Status: **public-suite candidate design, not frozen or scored**. The user chose public suites for the eventual main evaluation and separately authorized sharing local `pw-test` source for a small Codex-only pilot. Two feasibility pairs on the same `pw-test` task are reported in [the pilot report](../docs/PILOT-v0.4.md); none of the public candidate tasks below have been run with an agent. Source checkouts and baseline dependencies used for screening are temporary and are not part of this repository.
+Status: **public-suite candidate design, not frozen or scored**. The user chose public suites for the eventual main evaluation and separately authorized sharing local `pw-test` source for a small Codex-only pilot. Two feasibility pairs on the same `pw-test` task are reported in [the pilot report](../docs/archive/PILOT-v0.4.md); none of the public candidate tasks below have been run with an agent. Source checkouts and baseline dependencies used for screening are temporary and are not part of this repository.
 
 ## Scope and interpretation
 
-This is a candidate set for the controlled with/without-Scout evaluation in [the v0.4 protocol](../docs/SPEC-v0.4.md). The following trace labels are generated for this design, not business requirements:
+This is a candidate set for the controlled with/without-Scout evaluation in [the v0.4 protocol](../docs/archive/SPEC-v0.4.md). The following trace labels are generated for this design, not business requirements:
 
 - `REQ-001`: A test-authoring task offers an appropriate existing helper, fixture, or analogous test that an agent might reuse.
 - `REQ-002`: A maintenance task changes an existing helper/POM contract while preserving the intended test behavior.
