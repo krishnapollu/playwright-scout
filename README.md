@@ -43,8 +43,9 @@ npx playwright-scout find checkout coupon
 # Inspect a specific result
 npx playwright-scout show LoginPage.login
 
-# Get a small task brief or inspect known static impact
-npx playwright-scout context "add expired coupon coverage" --max-chars 6000
+# Get a small task capsule, then inspect cited evidence as needed
+npx playwright-scout context "add expired coupon coverage"
+npx playwright-scout show CheckoutPage.applyCoupon
 npx playwright-scout impact --file pages/checkout.page.ts
 
 # Optional, on-request framework guidance
@@ -60,7 +61,7 @@ Scout writes the index to `.scout/index.json`. Add `.scout/` to your repository�
 | --------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
 | `map`           | Build or refresh the project index.                                   | `npx playwright-scout map`                                 |
 | `find`          | Search helpers, methods, tests, fixtures, and tags.                   | `npx playwright-scout find login`                          |
-| `context`       | Give an agent a bounded task brief with reuse candidates and evidence. | `npx playwright-scout context "authenticated checkout"`    |
+| `context`       | Give an agent a bounded task capsule with cited reuse candidates. | `npx playwright-scout context "authenticated checkout"`    |
 | `show`          | Inspect a result by ID or readable label.                             | `npx playwright-scout show LoginPage.login`                |
 | `impact`        | Show known static links for a symbol or source file.                   | `npx playwright-scout impact --file pages/checkout.page.ts` |
 | `plan`          | Create an evidence-based reuse plan for an agent task.                | `npx playwright-scout plan "add checkout coupon coverage"` |
@@ -73,7 +74,7 @@ Scout writes the index to `.scout/index.json`. Add `.scout/` to your repository�
 - `--json` — return structured output for agents and scripts.
 - `--root <dir>` — run Scout against a different project directory.
 - `--if-stale` — with `map`, rebuild the index only when the source has changed.
-- `--max-chars <n>` — with `context`, bound the complete response (default 6000 characters, not an exact model token count).
+- `--max-chars <n>` — with `context`, bound the complete response (default 1800 characters, not an exact model token count). Use `show` on a cited ID for more evidence.
 - `--target <agent>` — with `install-skill`, choose `claude`, `agents`, `github`, `cursor`, or `all`.
 
 See the [CLI reference](docs/CLI.md) for all options.
@@ -98,7 +99,7 @@ Scout performs two static-analysis passes:
 
 The result is a deterministic JSON index that can be searched from the CLI or used through the library API.
 
-`context` gives an agent a small brief for creation or maintenance work. `impact --file` reports tests linked by the static index and the reason for each link. These results are advisory: dynamic calls and unsupported fixture shapes can leave relationships unknown. Scout does not infer business coverage requirements from source code.
+`context` gives an agent a small task capsule for creation or maintenance work. It lists omissions when the character bound cuts details; `show <cited-id>` retrieves a specific indexed entry. `impact --file` reports tests linked by the static index and the reason for each link. These results are advisory: dynamic calls and unsupported fixture shapes can leave relationships unknown. Scout does not infer business coverage requirements from source code.
 
 When reuse or change impact is unclear, the installed skill guides an agent to refresh the index, inspect source-backed matches, and reuse suitable code. For a straightforward local edit with a clear nearby example, it can work directly without Scout queries; `context` is not a mandatory step.
 

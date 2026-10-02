@@ -70,6 +70,13 @@ describe('task brief', () => {
     expect(brief.unknowns.join(' ')).not.toContain('coverage gap');
   });
 
+  it('does not recommend a test sharing only one incidental task word', () => {
+    const brief = buildTaskBrief(index, 'unrelated new visual layout');
+    expect(brief.reuse).toEqual([]);
+    expect(brief.analogousTest).toBeNull();
+    expect(brief.unknowns.join(' ')).toContain('No indexed test clearly matches');
+  });
+
   it('rejects impossible budgets', () => {
     expect(() => boundTaskBrief(buildTaskBrief(index, 'coupon'), 499, 'text')).toThrow();
     expect(() => boundTaskBrief(buildTaskBrief(index, 'coupon '.repeat(200)), 500, 'text')).toThrow();

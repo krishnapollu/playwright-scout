@@ -24,7 +24,7 @@ Searches helpers, class methods, tests, and fixtures. Text mode prints ranked li
 playwright-scout context <task...> [--limit <n>] [--max-chars <n>] [--root <dir>] [--json]
 ```
 
-Returns a task brief with source-backed reuse candidates, one similar test when found, setup/data references, observed patterns, and unknowns. The default `--max-chars` is 6000 (minimum 500), including the final newline and JSON syntax. This is a character bound, not a model-specific token count. Omitted items are counted. A stale index is flagged but not rewritten; run `map --if-stale` first. Findings are advisory and do not establish business coverage gaps.
+Returns a small task capsule with source-backed reuse candidates, one similar test when evidence is sufficient, setup/data references, observed patterns, and unknowns. The default `--max-chars` is 1800 (minimum 500), including the final newline and JSON syntax. This is a character bound, not a model-specific token count. Omitted items are counted; use `show <cited-id>` for specific evidence or raise `--max-chars` when needed. A stale index is flagged but not rewritten; run `map --if-stale` first. Findings are advisory and do not establish business coverage gaps.
 
 ## `show`
 

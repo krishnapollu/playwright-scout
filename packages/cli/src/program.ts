@@ -129,7 +129,7 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
       const limit = Number(value);
       if (!Number.isInteger(limit) || limit < 500) throw new InvalidArgumentError('max-chars must be an integer of at least 500');
       return limit;
-    }, 6000)
+    }, 1800)
     .option('--json')
     .action(async (queryParts: string[], options) => {
       const root = options.root ?? process.cwd();

@@ -1,5 +1,5 @@
 import { ScoutError } from './errors.js';
-import { searchIndex } from './search.js';
+import { searchIndex, tokenize } from './search.js';
 import type { Index, TestEntry } from './schema.js';
 
 export interface TaskReference {
@@ -58,7 +58,16 @@ export function buildTaskBrief(index: Index, query: string, options: TaskBriefOp
   }));
   const matchIds = new Set(reuse.map((item) => item.id));
   const methodMatchIds = new Set(matches.filter((match) => match.kind === 'method' && matchIds.has(match.id)).map((match) => match.id));
-  const matchedTest = matches.find((match) => match.kind === 'test');
+  // A lone common word in a multi-word task is too weak to call a test analogous.
+  const queryTokens = tokenize(query);
+  const matchedTest = matches.find((match) => {
+    if (match.kind !== 'test') return false;
+    const test = index.tests.find((item) => item.id === match.id);
+    if (!test) return false;
+    const evidence = new Set(tokenize([test.title ?? '', ...test.suitePath, ...test.tags].join(' ')));
+    const overlap = queryTokens.filter((token) => evidence.has(token)).length;
+    return overlap >= Math.min(2, queryTokens.length);
+  });
   const directMatch = matchedTest ? index.tests.find((test) => test.id === matchedTest.id) : undefined;
   const relatedTests = index.tests.filter((test) => test.calls.some((id) => matchIds.has(id)));
   const methodOverlap = (test: TestEntry | undefined): number => test?.calls.filter((id) => methodMatchIds.has(id)).length ?? 0;

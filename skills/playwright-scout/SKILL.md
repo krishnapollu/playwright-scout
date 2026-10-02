@@ -14,7 +14,7 @@ For a narrow edit in a known file with a clear nearby example, inspect that sour
 When the task spans files or the right existing code is uncertain, run from the project root:
 
 1. Refresh the static index: `npx playwright-scout map --if-stale --quiet`.
-2. Get a bounded task brief only when broader context is useful: `npx playwright-scout context "<task>" --max-chars 6000`. For a specific symbol, use `npx playwright-scout find <words>` and `npx playwright-scout show <id-or-label>`.
+2. Get a bounded task capsule only when broader context is useful: `npx playwright-scout context "<task>"` (default 1800 characters). Request more evidence on demand with `npx playwright-scout show <cited-id>`, or search with `npx playwright-scout find <words>`. Increase `--max-chars` only when needed.
 3. Inspect the cited source before reusing it; avoid broad file scans when a relevant path is already known. If a relevant match is unsuitable, briefly explain why.
 4. When changing a shared helper or method and its callers are unclear, use `npx playwright-scout impact <id-or-label>`. For a source file, use `npx playwright-scout impact --file <root-relative-path>`. These show known static links; an empty list does not prove other tests are unaffected.
 5. If you changed exported test support code and will make further Scout queries, refresh with `npx playwright-scout map` first.
