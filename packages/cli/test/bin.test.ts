@@ -38,6 +38,11 @@ function capture() {
 }
 
 describe('CLI commands', () => {
+  it('prints the package version', async () => {
+    const output = capture();
+    expect(await main(['node', 'scout', '--version'], output.writers)).toBe(0);
+    expect(output.output.stdout.trim()).toBe('0.5.0');
+  });
   it('previews the detected layout without writing an index', async () => {
     const root = await sampleRoot();
     const output = capture();

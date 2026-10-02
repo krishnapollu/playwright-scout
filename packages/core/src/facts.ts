@@ -441,7 +441,7 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
       for (const decl of stmt.declarationList.declarations) {
         if (!ts.isIdentifier(decl.name)) continue;
         const name = decl.name.text;
-        if (decl.initializer && hasTestObjectInitializer(decl.initializer)) {
+        if (decl.initializer && (hasTestObjectInitializer(decl.initializer) || (ts.isIdentifier(decl.initializer) && testObjectExports.has(decl.initializer.text)))) {
           testObjectExports.add(name);
         }
         if (decl.initializer && ts.isCallExpression(decl.initializer) && decl.initializer.expression.getText().endsWith('.extend')) {
@@ -531,7 +531,8 @@ export function extractFacts(relPath: string, sourceFile: ts.SourceFile, isSpec:
         const name = decl.name.text;
         const isExportedVar = !!stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
         const isDefault = !!stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword);
-        if (decl.initializer && !hasTestObjectInitializer(decl.initializer)) {
+        const isTestObjectAlias = decl.initializer && ts.isIdentifier(decl.initializer) && testObjectExports.has(name);
+        if (decl.initializer && !hasTestObjectInitializer(decl.initializer) && !isTestObjectAlias) {
           const isFunctionLike = ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer);
           const detail: HelperDetail = {
             id: createHelperId(toPosix(relPath), name),

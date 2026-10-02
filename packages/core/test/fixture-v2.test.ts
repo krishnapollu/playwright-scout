@@ -52,4 +52,12 @@ export const guest = base.extend({ account: async ({}, use) => { await use(2); }
       ['account', 'guest'],
     ]);
   });
+
+  it('treats an exported alias of a local test object as a test object', () => {
+    const source = `const impl = base.extend({ account: async ({}, use) => { await use(1); } });
+export const test = impl;`;
+    const facts = extractFacts('fixtures/alias.ts', parseFile('fixtures/alias.ts', source), false);
+    expect(facts.fixtureDefs[0]?.testObject).toBe('impl');
+    expect(facts.helperDetails.some((detail) => detail.name === 'test')).toBe(false);
+  });
 });

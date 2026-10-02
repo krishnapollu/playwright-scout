@@ -19,29 +19,57 @@ interface WeightedField {
   weight: number;
 }
 
-function scoreCandidate(fields: WeightedField[], queryTokens: string[]): number {
+const SYNONYMS: Record<string, string[]> = {
+  sign: ['login', 'signin', 'sign-in', 'authenticate', 'auth'],
+  login: ['signin', 'sign-in', 'authenticate', 'auth'],
+  signin: ['login', 'sign-in', 'authenticate', 'auth'],
+  authenticate: ['login', 'signin', 'sign-in', 'auth'],
+  auth: ['login', 'signin', 'sign-in', 'authenticate'],
+  coupon: ['discount', 'promo', 'voucher'],
+  discount: ['coupon', 'promo', 'voucher'],
+  promo: ['coupon', 'discount', 'voucher'],
+  voucher: ['coupon', 'discount', 'promo'],
+  register: ['signup', 'create-account'],
+  signup: ['register', 'create-account'],
+  email: ['mail'],
+  mail: ['email'],
+  logout: ['signout', 'sign-out'],
+  signout: ['logout', 'sign-out'],
+  cart: ['basket'],
+  basket: ['cart'],
+  wait: ['idle', 'load'],
+  idle: ['wait', 'load'],
+  load: ['wait', 'idle'],
+};
+
+interface QueryToken { token: string; synonym: boolean }
+
+function scoreCandidate(fields: WeightedField[], queryTokens: QueryToken[]): number {
   let score = 0;
   let allMatched = true;
   for (const token of queryTokens) {
     let matched = false;
     for (const field of fields) {
       const fieldTokens = tokenize(field.text);
-      if (fieldTokens.includes(token)) {
-        score += field.weight;
+      if (fieldTokens.includes(token.token)) {
+        score += token.synonym ? Math.floor(field.weight / 2) : field.weight;
         matched = true;
-      } else if (token.length >= 3 && fieldTokens.some((fieldToken) => fieldToken.startsWith(token) || (fieldToken.length >= 4 && token.startsWith(fieldToken)))) {
+      } else if (!token.synonym && token.token.length >= 3 && fieldTokens.some((fieldToken) => fieldToken.startsWith(token.token) || (fieldToken.length >= 4 && token.token.startsWith(fieldToken)))) {
         score += Math.floor(field.weight / 2);
         matched = true;
       }
     }
-    if (!matched) allMatched = false;
+    if (!matched && !token.synonym) allMatched = false;
   }
   if (allMatched) score += 2;
   return score;
 }
 
 export function searchIndex(index: Index, query: string, options: SearchOptions = {}): Array<{ id: string; kind: string; label: string; file: string; line: number; score: number; usedBySpecCount: number; summary: string | null }> {
-  const queryTokens = tokenize(query);
+  const queryTokens = tokenize(query).flatMap((token): QueryToken[] => [
+    { token, synonym: false },
+    ...(SYNONYMS[token] ?? []).map((synonym) => ({ token: synonym, synonym: true })),
+  ]);
   if (queryTokens.length === 0) return [];
 
   const kindFilter = options.kind ?? 'any';

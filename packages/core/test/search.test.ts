@@ -29,6 +29,12 @@ describe('searchIndex', () => {
   it('filters candidates before scoring', () => {
     expect(searchIndex(index, 'coupon', { kind: 'method' }).every((result) => result.kind === 'method')).toBe(true);
   });
+
+  it('finds login and coupon concepts through synonyms', () => {
+    expect(searchIndex(index, 'sign in').some((result) => result.id === 'helper:pages/login.page.ts#LoginPage')).toBe(true);
+    expect(searchIndex(index, 'discount').some((result) => result.id === 'helper:pages/checkout.page.ts#CheckoutPage.applyCoupon')).toBe(true);
+    expect(searchIndex(index, 'authenticate').some((result) => result.id === 'helper:pages/login.page.ts#LoginPage')).toBe(true);
+  });
 });
 
 describe('buildContext', () => {

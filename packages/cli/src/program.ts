@@ -1,6 +1,7 @@
 import { Command, CommanderError, InvalidArgumentError, Option } from 'commander';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import { isUpToDate, mapCommand } from './commands/map.js';
 import { findCommand } from './commands/find.js';
 import { showCommand } from './commands/show.js';
@@ -11,6 +12,8 @@ import { fileImpactCommand, validateSourceFile } from './commands/fileImpact.js'
 import { planCommand } from './commands/plan.js';
 import { buildIndex, doctor, readBusinessContext, readIndex, reviewSource, ScoutError } from 'playwright-scout-core';
 import { formatFindResults, formatShowEntry } from './format.js';
+
+const packageMetadata = JSON.parse(fsSync.readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
 
 export interface OutputWriters {
   stdout: (text: string) => void;
@@ -48,6 +51,7 @@ function errorText(error: unknown): string {
 export function createProgram(writers: OutputWriters = defaultWriters) {
   const program = new Command();
   program.name('playwright-scout');
+  program.version(packageMetadata.version);
   program.exitOverride();
   program.configureOutput({
     writeOut: (text) => writers.stdout(text),
