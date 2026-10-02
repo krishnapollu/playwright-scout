@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { extractFacts } from '../src/facts.js';
 import { parseFile } from '../src/parse.js';
@@ -54,8 +55,10 @@ export const guest = base.extend({ account: async ({}, use) => { await use(2); }
   });
 
   it('treats an exported alias of a local test object as a test object', () => {
-    const source = `const impl = base.extend({ account: async ({}, use) => { await use(1); } });
-export const test = impl;`;
+    const source = fs.readFileSync(
+      new URL('../../../fixtures/alias-suite/fixtures.ts', import.meta.url),
+      'utf8',
+    );
     const facts = extractFacts('fixtures/alias.ts', parseFile('fixtures/alias.ts', source), false);
     expect(facts.fixtureDefs[0]?.testObject).toBe('impl');
     expect(facts.helperDetails.some((detail) => detail.name === 'test')).toBe(false);
