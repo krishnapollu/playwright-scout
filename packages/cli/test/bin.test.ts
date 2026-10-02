@@ -49,7 +49,7 @@ describe('CLI commands', () => {
   it('prints the package version', async () => {
     const output = capture();
     expect(await main(['node', 'scout', '--version'], output.writers)).toBe(0);
-    expect(output.output.stdout.trim()).toBe('0.5.0');
+    expect(output.output.stdout.trim()).toBe('0.5.1');
   });
 
   it('labels doctor and review experimental in help', async () => {

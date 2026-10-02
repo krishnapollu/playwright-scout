@@ -1,3 +1,9 @@
+## 0.5.1 - 2026-10-02
+
+- Fix exported aliases of local Playwright test objects being indexed as helpers.
+- Add built-in search synonyms and CLI `--version` output.
+- Refresh launch documentation and mark `doctor` and `review` experimental.
+
 ## 0.5.0 - 2026-10-02
 
 - Improve compatibility with TypeScript 7 host projects by using core's own TypeScript compiler dependency.
