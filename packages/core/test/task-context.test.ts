@@ -24,6 +24,32 @@ describe('task brief', () => {
     expect(brief.setupAndData.some((item) => item.id === 'fixture:fixtures/index.ts#loginPage')).toBe(false);
   });
 
+  it('prefers a test using multiple relevant methods over a generic title match', () => {
+    const helperTemplate = index.helpers.find((entry) => entry.kind === 'class' && entry.methods.length > 0);
+    const methodTemplate = helperTemplate?.methods[0];
+    const testTemplate = index.tests[0];
+    if (!helperTemplate || !methodTemplate || !testTemplate) throw new Error('Missing test templates');
+    const ownerId = 'helper:pages/ProductsPage.ts#ProductsPage';
+    const method = (name: string, line: number) => ({ ...methodTemplate, id: `${ownerId}.${name}`, name, line });
+    const helper = { ...helperTemplate, id: ownerId, name: 'ProductsPage', exportName: 'ProductsPage',
+      file: 'pages/ProductsPage.ts', methods: [method('addProductToCart', 10), method('getProductNames', 20), method('searchProduct', 30)] };
+    const test = (title: string, line: number, calls: string[]) => ({ ...testTemplate,
+      id: `test:tests/products/web.spec.ts::Products > ${title}`, title, file: 'tests/products/web.spec.ts', line,
+      suitePath: ['Products'], calls: [ownerId, ...calls.map((name) => `${ownerId}.${name}`)], fixtures: [] });
+    const apiWeb = { ...test('product search is available through API and web', 5, ['searchProduct', 'getProductNames']),
+      id: 'test:tests/products/api-web.spec.ts::product search is available through API and web',
+      file: 'tests/products/api-web.spec.ts' };
+    const suite: Index = { ...index, helpers: [helper], fixtures: [], tests: [
+      apiWeb,
+      test('add product to cart shows modal', 10, ['addProductToCart']),
+      test('search for dress returns results', 20, ['searchProduct', 'getProductNames']),
+      test('search for tshirt returns results', 30, ['searchProduct']),
+    ] };
+    const brief = buildTaskBrief(suite, 'Add a Playwright test for searching for jeans on the Products page. Verify every displayed product name contains jeans.');
+    expect(brief.analogousTest?.label).toBe('search for dress returns results');
+    expect(brief.analogousTest?.reason).toBe('called_by_related_test');
+  });
+
   it('renders complete, deterministic text and JSON within the declared size', () => {
     const brief = buildTaskBrief(index, 'coupon checkout', { staleIndex: true });
     for (const format of ['text', 'json'] as const) {

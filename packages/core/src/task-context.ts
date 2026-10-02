@@ -57,12 +57,24 @@ export function buildTaskBrief(index: Index, query: string, options: TaskBriefOp
       : match.summary),
   }));
   const matchIds = new Set(reuse.map((item) => item.id));
+  const methodMatchIds = new Set(matches.filter((match) => match.kind === 'method' && matchIds.has(match.id)).map((match) => match.id));
   const matchedTest = matches.find((match) => match.kind === 'test');
+  const directMatch = matchedTest ? index.tests.find((test) => test.id === matchedTest.id) : undefined;
   const relatedTests = index.tests.filter((test) => test.calls.some((id) => matchIds.has(id)));
-  const analogue = matchedTest ? index.tests.find((test) => test.id === matchedTest.id) : relatedTests[0];
+  const methodOverlap = (test: TestEntry | undefined): number => test?.calls.filter((id) => methodMatchIds.has(id)).length ?? 0;
+  let strongestRelated: TestEntry | undefined;
+  for (const test of relatedTests) {
+    if (!strongestRelated || methodOverlap(test) > methodOverlap(strongestRelated)
+      || (methodOverlap(test) === methodOverlap(strongestRelated) && directMatch !== undefined
+        && test.file === directMatch.file && strongestRelated.file !== directMatch.file)) {
+      strongestRelated = test;
+    }
+  }
+  const analogue = strongestRelated && methodOverlap(strongestRelated) > methodOverlap(directMatch)
+    ? strongestRelated : directMatch ?? strongestRelated;
   const analogousTest = analogue ? {
     ...sameTest(analogue),
-    reason: matchedTest ? 'query_match' as const : 'called_by_related_test' as const,
+    reason: analogue === directMatch ? 'query_match' as const : 'called_by_related_test' as const,
   } : null;
   const setupAndData: TaskReference[] = [];
   if (analogue) {

@@ -1,21 +1,23 @@
 ---
 name: playwright-scout
-description: Use when creating or changing Playwright tests, page objects, fixtures, or test helpers in a project with Scout installed, or when explicitly asked to review Playwright setup or test-code practices. Finds reusable code and known static impact; framework guidance is opt-in.
+description: Use when a Playwright suite change needs help finding reusable code, relevant examples, conventions, or static impact, or when explicitly asked for setup/test-code review. Skip Scout queries for an obvious local edit with a clear nearby example.
 ---
 
 # playwright-scout
 
-Understand the existing Playwright suite before changing its tests or support code.
+Find only the suite context that helps with the requested change. Scout queries are optional, not a prerequisite for editing Playwright code.
 
 ## Workflow
 
-Run these from the project root when the task involves Playwright code:
+For a narrow edit in a known file with a clear nearby example, inspect that source and work directly. Skip `map` and `context` unless reuse or impact remains unclear.
+
+When the task spans files or the right existing code is uncertain, run from the project root:
 
 1. Refresh the static index: `npx playwright-scout map --if-stale --quiet`.
-2. Get a bounded task brief for broader work: `npx playwright-scout context "<task>" --max-chars 6000`. For a specific symbol, use `npx playwright-scout find <words>` and `npx playwright-scout show <id-or-label>`.
-3. Reuse a relevant helper, page object, or fixture when it fits the task. Inspect the referenced source before editing. If a relevant match is unsuitable, briefly explain why.
-4. When changing an existing helper or method, use `npx playwright-scout impact <id-or-label>`. For a source file, use `npx playwright-scout impact --file <root-relative-path>`. These show known static links; an empty list does not prove other tests are unaffected.
-5. After changing exported test support code, refresh with `npx playwright-scout map`.
+2. Get a bounded task brief only when broader context is useful: `npx playwright-scout context "<task>" --max-chars 6000`. For a specific symbol, use `npx playwright-scout find <words>` and `npx playwright-scout show <id-or-label>`.
+3. Inspect the cited source before reusing it; avoid broad file scans when a relevant path is already known. If a relevant match is unsuitable, briefly explain why.
+4. When changing a shared helper or method and its callers are unclear, use `npx playwright-scout impact <id-or-label>`. For a source file, use `npx playwright-scout impact --file <root-relative-path>`. These show known static links; an empty list does not prove other tests are unaffected.
+5. If you changed exported test support code and will make further Scout queries, refresh with `npx playwright-scout map` first.
 
 Scout's brief reports observed patterns and unknowns; it does not know business expectations unless the user supplies them. Some fixture shapes and dynamic calls are unlinked. If something seems missing, inspect the code directly. Do not read or edit `.scout/index.json` by hand or commit `.scout/`. Use `--json` when structured output helps. Confirm that your agent reads the directory where `install-skill` placed this file.
 
