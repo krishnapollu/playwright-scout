@@ -12,7 +12,7 @@
 
 `playwright-scout` is an agent skill, static index, and search tool for Playwright projects. It helps coding agents understand existing page objects, helpers, fixtures, tests, tags, routes, and relationships before they change or extend a suite. It can also provide a bounded, source-backed brief for a task.
 
-The `0.5.0` candidate documented here is available from this repository and has not been published to npm. To try it from a checkout, run `npm ci`, `npm run build`, then `node packages/cli/dist/bin.js --help`. The npm quick start below installs the latest published version, which may not include these commands yet.
+Version `0.5.0` is published to npm as `playwright-scout` and `playwright-scout-core`. To try the repository checkout, run `npm ci`, `npm run build`, then `node packages/cli/dist/bin.js --help`.
 
 Scout reads your source code without running your tests or project code, giving agents a reliable map they can query before writing new code. That means new tests can build on what is already there instead of creating duplicates.
 
@@ -33,9 +33,6 @@ Requires Node.js 20 or newer.
 ```bash
 npm install -D playwright-scout
 
-# Preview the existing Playwright layout without writing files
-npx playwright-scout init
-
 # Build or refresh the project index
 npx playwright-scout map
 
@@ -54,27 +51,24 @@ npx playwright-scout impact --file pages/checkout.page.ts
 # Optional team-authored business context
 npx playwright-scout context "add expired coupon coverage" --business-context docs/business
 
-# Optional, on-request framework guidance
-npx playwright-scout doctor
-npx playwright-scout review --file tests/checkout.spec.ts
 ```
 
 Scout writes the index to `.scout/index.json`. Add `.scout/` to your repository’s `.gitignore`; the index can always be regenerated.
 
 ## Commands
 
-| Command         | What it does                                                          | Example                                                    |
-| --------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `init`          | Preview what Scout would index, without writing files.               | `npx playwright-scout init`                                |
-| `map`           | Build or refresh the project index.                                   | `npx playwright-scout map`                                 |
-| `find`          | Search helpers, methods, tests, fixtures, and tags.                   | `npx playwright-scout find login`                          |
-| `context`       | Give an agent a bounded task capsule with cited reuse candidates. | `npx playwright-scout context "authenticated checkout"`    |
-| `show`          | Inspect a result by ID or readable label.                             | `npx playwright-scout show LoginPage.login`                |
-| `impact`        | Show known static links for a symbol or source file.                   | `npx playwright-scout impact --file pages/checkout.page.ts` |
-| `plan`          | Create an evidence-based reuse plan for an agent task.                | `npx playwright-scout plan "add checkout coupon coverage"` |
-| `doctor`        | Check a narrow set of static config facts on request.                 | `npx playwright-scout doctor`                               |
-| `review`        | Review one chosen file for a few supported test-code patterns.        | `npx playwright-scout review --file tests/checkout.spec.ts`  |
-| `install-skill` | Install the agent instructions for a supported coding assistant.      | `npx playwright-scout install-skill --target claude`       |
+| Command         | What it does                                                      | Example                                                     |
+| --------------- | ----------------------------------------------------------------- | ----------------------------------------------------------- |
+| `init`          | Preview what Scout would index, without writing files.            | `npx playwright-scout init`                                 |
+| `map`           | Build or refresh the project index.                               | `npx playwright-scout map`                                  |
+| `find`          | Search helpers, methods, tests, fixtures, and tags.               | `npx playwright-scout find login`                           |
+| `context`       | Give an agent a bounded task capsule with cited reuse candidates. | `npx playwright-scout context "authenticated checkout"`     |
+| `show`          | Inspect a result by ID or readable label.                         | `npx playwright-scout show LoginPage.login`                 |
+| `impact`        | Show known static links for a symbol or source file.              | `npx playwright-scout impact --file pages/checkout.page.ts` |
+| `plan`          | Create an evidence-based reuse plan for an agent task.            | `npx playwright-scout plan "add checkout coupon coverage"`  |
+| `doctor`        | Experimental: check a narrow set of static config facts.          | `npx playwright-scout doctor`                               |
+| `review`        | Experimental: review one file for limited test-code patterns.     | `npx playwright-scout review --file tests/checkout.spec.ts` |
+| `install-skill` | Install the agent instructions for a supported coding assistant.  | `npx playwright-scout install-skill --target claude`        |
 
 ### Common options
 
@@ -115,7 +109,7 @@ Teams can optionally point `context` at a JSON file or directory of [versioned b
 
 When reuse or change impact is unclear, the installed skill guides an agent to refresh the index, inspect source-backed matches, and reuse suitable code. For a straightforward local edit with a clear nearby example, it can work directly without Scout queries; `context` is not a mandatory step.
 
-`doctor` and `review` are separate, opt-in commands. They make suggestions only when asked and never block ordinary suite work. Their findings are based on a deliberately small set of static checks; an empty result is not proof that a framework has no issues.
+`doctor` and `review` are experimental, opt-in commands. They make suggestions only when asked and never block ordinary suite work. Their findings are based on a deliberately small set of static checks; an empty result is not proof that a framework has no issues.
 
 ## Using the library
 
@@ -143,7 +137,7 @@ For the complete behavior and supported patterns, see the [v0.3 guidance specifi
 
 ## Evaluation status
 
-Two same-task Codex feasibility pairs are documented in the [pilot report](https://github.com/krishnapollu/playwright-scout/blob/main/docs/PILOT-v0.4.md); they do not establish token or quality gains. Controlled agent runs are paused. The [P4 measurement notes](https://github.com/krishnapollu/playwright-scout/blob/main/docs/P4-MEASUREMENT.md) describe the offline instrumentation and the quality-first criteria required before any efficiency claim.
+The two feasibility pilots had inconsistent token results; no token-savings or efficacy claim is made. See the [pilot report](https://github.com/krishnapollu/playwright-scout/blob/main/docs/PILOT-v0.4.md). Controlled agent runs are paused.
 
 ## Development
 
@@ -172,7 +166,7 @@ npm run release:publish
 
 The script checks the release, confirms the contents of both packages, and prompts before publishing core followed by the CLI. It skips a version that is already on npm, so you can rerun it if the second package fails. Bump the package you are releasing; if core changes, update the CLI's core dependency too. For prereleases, use `--tag next`.
 
-The [0.5.0 candidate verification](https://github.com/krishnapollu/playwright-scout/blob/main/docs/RELEASE-v0.5.md) passed; publishing and pushing remain maintainer actions.
+The [0.5.0 candidate verification](https://github.com/krishnapollu/playwright-scout/blob/main/docs/RELEASE-v0.5.md) passed before publication. Version `0.5.0` is now on npm; tagging a release remains a maintainer action.
 
 ## License
 

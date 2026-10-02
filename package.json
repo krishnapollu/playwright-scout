@@ -14,7 +14,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run && node --test bench/*.test.mjs",
-    "check": "npm run lint && npm run typecheck && npm run test",
+    "check": "npm run lint && npm run typecheck && npm run test && npx prettier --check .",
     "release:publish": "node scripts/publish.mjs"
   },
   "devDependencies": {

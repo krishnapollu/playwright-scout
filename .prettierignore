@@ -1,0 +1,2 @@
+# Preserve source coordinates used by golden tests, including the malformed spec.
+fixtures/sample-suite/**

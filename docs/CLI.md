@@ -61,7 +61,7 @@ playwright-scout plan <query...> [--limit <n>] [--root <dir>] [--json]
 
 Builds a deterministic, evidence-based reuse plan from matching indexed code and its relationships.
 
-## `doctor` and `review` (opt-in)
+## `doctor` and `review` (experimental, opt-in)
 
 ```sh
 playwright-scout doctor [--root <dir>] [--json]
@@ -80,11 +80,11 @@ Installs the bundled skill. Qwen Code's project path is `.qwen/skills/playwright
 
 ## Exit Codes
 
-| Code | Meaning |
-|---:|---|
-| 0 | Success |
-| 1 | Unexpected error |
-| 2 | Usage error |
-| 3 | No tests found |
-| 4 | Index missing or invalid |
-| 5 | Entry not found or ambiguous |
+| Code | Meaning                      |
+| ---: | ---------------------------- |
+|    0 | Success                      |
+|    1 | Unexpected error             |
+|    2 | Usage error                  |
+|    3 | No tests found               |
+|    4 | Index missing or invalid     |
+|    5 | Entry not found or ambiguous |

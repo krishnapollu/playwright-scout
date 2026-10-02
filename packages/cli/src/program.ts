@@ -10,10 +10,19 @@ import { contextCommand } from './commands/context.js';
 import { impactCommand } from './commands/impact.js';
 import { fileImpactCommand, validateSourceFile } from './commands/fileImpact.js';
 import { planCommand } from './commands/plan.js';
-import { buildIndex, doctor, readBusinessContext, readIndex, reviewSource, ScoutError } from 'playwright-scout-core';
+import {
+  buildIndex,
+  doctor,
+  readBusinessContext,
+  readIndex,
+  reviewSource,
+  ScoutError,
+} from 'playwright-scout-core';
 import { formatFindResults, formatShowEntry } from './format.js';
 
-const packageMetadata = JSON.parse(fsSync.readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
+const packageMetadata = JSON.parse(
+  fsSync.readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+) as { version: string };
 
 export interface OutputWriters {
   stdout: (text: string) => void;
@@ -26,10 +35,16 @@ const defaultWriters: OutputWriters = {
 };
 
 function exitCodeFor(error: unknown): number {
-  if (error instanceof CommanderError) return error.code === 'commander.helpDisplayed' || error.code === 'commander.version' ? 0 : 2;
+  if (error instanceof CommanderError)
+    return error.code === 'commander.helpDisplayed' || error.code === 'commander.version' ? 0 : 2;
   if (error instanceof ScoutError) {
     if (error.code === 'NO_TESTS_FOUND') return 3;
-    if (error.code === 'INDEX_MISSING' || error.code === 'INDEX_INVALID' || error.code === 'INDEX_SCHEMA_MISMATCH') return 4;
+    if (
+      error.code === 'INDEX_MISSING' ||
+      error.code === 'INDEX_INVALID' ||
+      error.code === 'INDEX_SCHEMA_MISMATCH'
+    )
+      return 4;
     if (error.code === 'NOT_FOUND' || error.code === 'AMBIGUOUS') return 5;
     if (error.code === 'USAGE') return 2;
   }
@@ -38,7 +53,11 @@ function exitCodeFor(error: unknown): number {
 
 function errorText(error: unknown): string {
   if (error instanceof ScoutError) {
-    if (error.code === 'INDEX_MISSING' || error.code === 'INDEX_INVALID' || error.code === 'INDEX_SCHEMA_MISMATCH') {
+    if (
+      error.code === 'INDEX_MISSING' ||
+      error.code === 'INDEX_INVALID' ||
+      error.code === 'INDEX_SCHEMA_MISMATCH'
+    ) {
       return 'scout: index missing or invalid. Run: npx playwright-scout map';
     }
     return `scout: ${error.message}`;
@@ -64,19 +83,31 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
     .description('preview the Playwright layout Scout would index')
     .option('--root <dir>', 'root directory', process.cwd())
     .option('--business-context <path>', 'optional v1 business context file or directory')
-    .option('--allow-external-business-context', 'allow a business context path outside the project')
+    .option(
+      '--allow-external-business-context',
+      'allow a business context path outside the project',
+    )
     .option('--json')
     .action(async (options) => {
       const root = options.root ?? process.cwd();
       if (options.allowExternalBusinessContext && !options.businessContext) {
-        throw new ScoutError('USAGE', '--allow-external-business-context requires --business-context');
+        throw new ScoutError(
+          'USAGE',
+          '--allow-external-business-context requires --business-context',
+        );
       }
       if (options.businessContext) {
-        await readBusinessContext(root, options.businessContext, '', !!options.allowExternalBusinessContext);
+        await readBusinessContext(
+          root,
+          options.businessContext,
+          '',
+          !!options.allowExternalBusinessContext,
+        );
       }
       const index = await buildIndex({ root, deterministic: true });
       const preview = {
-        command: 'init', writesFiles: false,
+        command: 'init',
+        writesFiles: false,
         configFile: index.project.configFile,
         testDir: index.project.testDir,
         specFiles: index.stats.specFiles,
@@ -85,20 +116,27 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
         fixtures: index.stats.fixtures,
         helperDirs: index.project.helperDirs,
         businessContext: options.businessContext
-          ? path.relative(path.resolve(root), path.resolve(root, options.businessContext)).split(path.sep).join('/') : null,
+          ? path
+              .relative(path.resolve(root), path.resolve(root, options.businessContext))
+              .split(path.sep)
+              .join('/')
+          : null,
         diagnostics: index.diagnostics,
       };
       if (options.json) writers.stdout(`${JSON.stringify(preview)}\n`);
-      else writers.stdout(`${[
-        'scout init preview (no files written)',
-        `config: ${preview.configFile ?? 'not detected'}`,
-        `test dir: ${preview.testDir ?? 'not detected'}`,
-        `would index: ${preview.specFiles} specs, ${preview.tests} tests, ${preview.helpers} helpers, ${preview.fixtures} fixtures`,
-        `helper dirs: ${preview.helperDirs.map((item) => `${item.dir} (${item.count})`).join(', ') || 'none detected'}`,
-        `business context: ${preview.businessContext ?? 'optional; pass --business-context <path> to context'}`,
-        `diagnostics: ${preview.diagnostics.length}`,
-        'next: npx playwright-scout map',
-      ].join('\n')}\n`);
+      else
+        writers.stdout(
+          `${[
+            'scout init preview (no files written)',
+            `config: ${preview.configFile ?? 'not detected'}`,
+            `test dir: ${preview.testDir ?? 'not detected'}`,
+            `would index: ${preview.specFiles} specs, ${preview.tests} tests, ${preview.helpers} helpers, ${preview.fixtures} fixtures`,
+            `helper dirs: ${preview.helperDirs.map((item) => `${item.dir} (${item.count})`).join(', ') || 'none detected'}`,
+            `business context: ${preview.businessContext ?? 'optional; pass --business-context <path> to context'}`,
+            `diagnostics: ${preview.diagnostics.length}`,
+            'next: npx playwright-scout map',
+          ].join('\n')}\n`,
+        );
     });
 
   program
@@ -129,19 +167,40 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
   program
     .command('find <query...>')
     .option('--root <dir>', 'root directory', process.cwd())
-    .addOption(new Option('--kind <kind>', 'kind').choices(['helper', 'method', 'test', 'fixture', 'any']).default('any'))
-    .option('--limit <limit>', 'limit', (value: string) => {
-      const limit = Number(value);
-      if (!Number.isInteger(limit) || limit < 1) throw new InvalidArgumentError('limit must be a positive integer');
-      return limit;
-    }, 10)
+    .addOption(
+      new Option('--kind <kind>', 'kind')
+        .choices(['helper', 'method', 'test', 'fixture', 'any'])
+        .default('any'),
+    )
+    .option(
+      '--limit <limit>',
+      'limit',
+      (value: string) => {
+        const limit = Number(value);
+        if (!Number.isInteger(limit) || limit < 1)
+          throw new InvalidArgumentError('limit must be a positive integer');
+        return limit;
+      },
+      10,
+    )
     .option('--json')
     .action(async (queryParts: string[], options) => {
       const index = await readIndex(options.root ?? process.cwd());
       const query = queryParts.join(' ');
       const result = findCommand(index, query, options.kind ?? 'any', options.limit ?? 10);
       const output = options.json
-        ? JSON.stringify(result.map(({ id, kind, label, file, line, score, usedBySpecCount, summary }) => ({ id, kind, label, file, line, score, usedBySpecCount, summary })))
+        ? JSON.stringify(
+            result.map(({ id, kind, label, file, line, score, usedBySpecCount, summary }) => ({
+              id,
+              kind,
+              label,
+              file,
+              line,
+              score,
+              usedBySpecCount,
+              summary,
+            })),
+          )
         : formatFindResults(query, result);
       writers.stdout(`${output}\n`);
     });
@@ -158,7 +217,9 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
         writers.stderr(`${result.candidates.slice(0, 10).join('\n')}\n`);
         throw new ScoutError('AMBIGUOUS', `ambiguous: ${id}`);
       }
-      const output = options.json ? JSON.stringify(result.entry) : formatShowEntry(index, result.entry);
+      const output = options.json
+        ? JSON.stringify(result.entry)
+        : formatShowEntry(index, result.entry);
       writers.stdout(`${output}\n`);
     });
 
@@ -166,32 +227,60 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
     .command('context <query...>')
     .description('build a compact suite context for an agent')
     .option('--root <dir>', 'root directory', process.cwd())
-    .option('--limit <limit>', 'number of search matches', (value: string) => {
-      const limit = Number(value);
-      if (!Number.isInteger(limit) || limit < 1) throw new InvalidArgumentError('limit must be a positive integer');
-      return limit;
-    }, 8)
-    .option('--max-chars <n>', 'complete output character limit', (value: string) => {
-      const limit = Number(value);
-      if (!Number.isInteger(limit) || limit < 500) throw new InvalidArgumentError('max-chars must be an integer of at least 500');
-      return limit;
-    }, 1800)
+    .option(
+      '--limit <limit>',
+      'number of search matches',
+      (value: string) => {
+        const limit = Number(value);
+        if (!Number.isInteger(limit) || limit < 1)
+          throw new InvalidArgumentError('limit must be a positive integer');
+        return limit;
+      },
+      8,
+    )
+    .option(
+      '--max-chars <n>',
+      'complete output character limit',
+      (value: string) => {
+        const limit = Number(value);
+        if (!Number.isInteger(limit) || limit < 500)
+          throw new InvalidArgumentError('max-chars must be an integer of at least 500');
+        return limit;
+      },
+      1800,
+    )
     .option('--json')
     .option('--business-context <path>', 'optional v1 business context file or directory')
-    .option('--allow-external-business-context', 'allow a business context path outside the project')
+    .option(
+      '--allow-external-business-context',
+      'allow a business context path outside the project',
+    )
     .action(async (queryParts: string[], options) => {
       const root = options.root ?? process.cwd();
       const index = await readIndex(root);
       const current = await isUpToDate(root, path.join(root, '.scout/index.json'));
       if (options.allowExternalBusinessContext && !options.businessContext) {
-        throw new ScoutError('USAGE', '--allow-external-business-context requires --business-context');
+        throw new ScoutError(
+          'USAGE',
+          '--allow-external-business-context requires --business-context',
+        );
       }
       const query = queryParts.join(' ');
       const businessContext = options.businessContext
-        ? await readBusinessContext(root, options.businessContext, query, !!options.allowExternalBusinessContext) : [];
+        ? await readBusinessContext(
+            root,
+            options.businessContext,
+            query,
+            !!options.allowExternalBusinessContext,
+          )
+        : [];
       const result = contextCommand(index, query, {
-        limit: options.limit, maxChars: options.maxChars, staleIndex: !current,
-        format: options.json ? 'json' : 'text', businessContext, businessContextConfigured: !!options.businessContext,
+        limit: options.limit,
+        maxChars: options.maxChars,
+        staleIndex: !current,
+        format: options.json ? 'json' : 'text',
+        businessContext,
+        businessContextConfigured: !!options.businessContext,
       });
       writers.stdout(result.output);
     });
@@ -208,14 +297,21 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
         if (id) throw new ScoutError('USAGE', 'provide either an entry ID or --file, not both');
         const result = await fileImpactCommand(index, options.root ?? process.cwd(), options.file);
         if (options.json) writers.stdout(`${JSON.stringify(result)}\n`);
-        else writers.stdout(`${[
-          `file: ${result.file}`,
-          'knownAffectedTests:',
-          ...result.knownAffectedTests.map((test) => `- ${test.id} ${test.file}:${test.line} (${test.reasons.join(', ')})`),
-          ...(result.knownAffectedTests.length ? [] : ['- No affected tests proven by the index.']),
-          'analysisLimits:',
-          ...result.analysisLimits.map((limit) => `- ${limit}`),
-        ].join('\n')}\n`);
+        else
+          writers.stdout(
+            `${[
+              `file: ${result.file}`,
+              'knownAffectedTests:',
+              ...result.knownAffectedTests.map(
+                (test) => `- ${test.id} ${test.file}:${test.line} (${test.reasons.join(', ')})`,
+              ),
+              ...(result.knownAffectedTests.length
+                ? []
+                : ['- No affected tests proven by the index.']),
+              'analysisLimits:',
+              ...result.analysisLimits.map((limit) => `- ${limit}`),
+            ].join('\n')}\n`,
+          );
         return;
       }
       if (!id) throw new ScoutError('USAGE', 'provide an entry ID or --file');
@@ -226,23 +322,31 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
         writers.stdout(`${JSON.stringify(result)}\n`);
         return;
       }
-      writers.stdout(`${[
-        `entry: ${result.helper ?? result.entry?.id ?? id}`,
-        `specs: ${result.directSpecs.join(', ') || 'none'}`,
-        `tests: ${result.tests.join(', ') || 'none'}`,
-        `related helpers: ${result.relatedHelpers.join(', ') || 'none'}`,
-      ].join('\n')}\n`);
+      writers.stdout(
+        `${[
+          `entry: ${result.helper ?? result.entry?.id ?? id}`,
+          `specs: ${result.directSpecs.join(', ') || 'none'}`,
+          `tests: ${result.tests.join(', ') || 'none'}`,
+          `related helpers: ${result.relatedHelpers.join(', ') || 'none'}`,
+        ].join('\n')}\n`,
+      );
     });
 
   program
     .command('plan <query...>')
     .description('build an evidence-based reuse plan for an agent task')
     .option('--root <dir>', 'root directory', process.cwd())
-    .option('--limit <limit>', 'number of search matches', (value: string) => {
-      const limit = Number(value);
-      if (!Number.isInteger(limit) || limit < 1) throw new InvalidArgumentError('limit must be a positive integer');
-      return limit;
-    }, 8)
+    .option(
+      '--limit <limit>',
+      'number of search matches',
+      (value: string) => {
+        const limit = Number(value);
+        if (!Number.isInteger(limit) || limit < 1)
+          throw new InvalidArgumentError('limit must be a positive integer');
+        return limit;
+      },
+      8,
+    )
     .option('--json')
     .action(async (queryParts: string[], options) => {
       const index = await readIndex(options.root ?? process.cwd());
@@ -251,37 +355,49 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
         writers.stdout(`${JSON.stringify(result)}\n`);
         return;
       }
-      writers.stdout(`${[`task: ${result.query}`, 'recommendations:', ...result.recommendations.map((item) => `- ${item}`)].join('\n')}\n`);
+      writers.stdout(
+        `${[`task: ${result.query}`, 'recommendations:', ...result.recommendations.map((item) => `- ${item}`)].join('\n')}\n`,
+      );
     });
 
   program
     .command('review')
-    .description('opt-in static review of one Playwright source file')
+    .description('experimental: opt-in static review of one Playwright source file')
     .requiredOption('--file <path>', 'existing root-relative source file')
     .option('--root <dir>', 'root directory', process.cwd())
     .option('--json')
     .action(async (options) => {
       const file = await validateSourceFile(options.root ?? process.cwd(), options.file);
       const stat = await fs.stat(file.absolute);
-      if (stat.size > 1024 * 1024) throw new ScoutError('USAGE', '--file exceeds the 1 MiB review limit');
+      if (stat.size > 1024 * 1024)
+        throw new ScoutError('USAGE', '--file exceeds the 1 MiB review limit');
       const source = await fs.readFile(file.absolute, 'utf8');
       const result = reviewSource(file.relative, source);
       if (options.json) {
         writers.stdout(`${JSON.stringify(result)}\n`);
         return;
       }
-      writers.stdout(`${[
-        `review: ${file.relative}`,
-        'findings:',
-        ...(result.findings.length ? result.findings.map((item) => `- ${item.ruleId} ${item.file}:${item.line} — ${item.suggestion} (${item.guideUrl})`) : ['- None from the supported checks.']),
-        'unknowns:',
-        ...(result.unknowns.length ? result.unknowns.map((item) => `- ${item}`) : ['- None reported.']),
-      ].join('\n')}\n`);
+      writers.stdout(
+        `${[
+          `review: ${file.relative}`,
+          'findings:',
+          ...(result.findings.length
+            ? result.findings.map(
+                (item) =>
+                  `- ${item.ruleId} ${item.file}:${item.line} — ${item.suggestion} (${item.guideUrl})`,
+              )
+            : ['- None from the supported checks.']),
+          'unknowns:',
+          ...(result.unknowns.length
+            ? result.unknowns.map((item) => `- ${item}`)
+            : ['- None reported.']),
+        ].join('\n')}\n`,
+      );
     });
 
   program
     .command('doctor')
-    .description('opt-in static Playwright configuration guidance')
+    .description('experimental: opt-in static Playwright configuration guidance')
     .option('--root <dir>', 'root directory', process.cwd())
     .option('--json')
     .action((options) => {
@@ -290,18 +406,31 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
         writers.stdout(`${JSON.stringify(result)}\n`);
         return;
       }
-      writers.stdout(`${[
-        'doctor: opt-in configuration guidance',
-        'findings:',
-        ...(result.findings.length ? result.findings.map((item) => `- ${item.ruleId} ${item.file}:${item.line} — ${item.suggestion} (${item.guideUrl})`) : ['- None from the supported checks.']),
-        'unknowns:',
-        ...(result.unknowns.length ? result.unknowns.map((item) => `- ${item}`) : ['- None reported.']),
-      ].join('\n')}\n`);
+      writers.stdout(
+        `${[
+          'doctor: opt-in configuration guidance',
+          'findings:',
+          ...(result.findings.length
+            ? result.findings.map(
+                (item) =>
+                  `- ${item.ruleId} ${item.file}:${item.line} — ${item.suggestion} (${item.guideUrl})`,
+              )
+            : ['- None from the supported checks.']),
+          'unknowns:',
+          ...(result.unknowns.length
+            ? result.unknowns.map((item) => `- ${item}`)
+            : ['- None reported.']),
+        ].join('\n')}\n`,
+      );
     });
 
   program
     .command('install-skill')
-    .addOption(new Option('--target <target>', 'agent target').choices(['claude', 'agents', 'github', 'cursor', 'qwen', 'all']).default('agents'))
+    .addOption(
+      new Option('--target <target>', 'agent target')
+        .choices(['claude', 'agents', 'github', 'cursor', 'qwen', 'all'])
+        .default('agents'),
+    )
     .option('--root <dir>', 'root directory', process.cwd())
     .option('--global', 'install into the global Claude config directory')
     .option('--force', 'overwrite an existing skill file')
@@ -323,7 +452,10 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
 
 export const program = createProgram();
 
-export async function main(argv: string[] = process.argv, writers: OutputWriters = defaultWriters): Promise<number> {
+export async function main(
+  argv: string[] = process.argv,
+  writers: OutputWriters = defaultWriters,
+): Promise<number> {
   const program = createProgram(writers);
   try {
     await program.parseAsync(argv);
