@@ -9,4 +9,4 @@ const index = await buildIndex({ root: process.cwd(), deterministic: true });
 const results = searchIndex(index, 'login', { limit: 10 });
 ```
 
-Node.js 20 or newer and TypeScript 5 or newer are required. See the [project README](https://github.com/krishnapollu/playwright-scout#playwright-scout) for CLI usage and known limitations.
+Node.js 20 or newer is required. Core installs its own TypeScript 5 compiler API dependency for static analysis, independently of the project's TypeScript compiler version. See the [project README](https://github.com/krishnapollu/playwright-scout#playwright-scout) for CLI usage and known limitations.

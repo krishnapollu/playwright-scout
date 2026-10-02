@@ -22,9 +22,7 @@
   "files": ["dist", "README.md", "LICENSE"],
   "dependencies": {
     "fast-glob": "^3.3.2",
+    "typescript": "^5.0.0",
     "zod": "^3.23.0"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
   }
 }

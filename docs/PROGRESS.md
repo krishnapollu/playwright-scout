@@ -74,3 +74,4 @@
 ## Next-phase product planning
 
 - [x] Draft direction — Recorded the token-conscious, coding-assistant-agnostic product milestones in `docs/PLAN-v0.5.md`: selective suite context, optional configurable business files, low-friction setup and Qwen support, plus a later evidence gate that measures wall-time components as well as tokens and quality. Further agent tests remain paused; no product behavior changed.
+- [x] P0 Baseline and contract — Recorded command/skill/installer behavior, a reproducible unrelated-query suggestion, three representative P1 tasks, and the existing evaluation measures in `docs/P0-BASELINE.md`. Core now declares its TypeScript 5 compiler API as a runtime dependency instead of an incompatible peer for TypeScript 7 host projects. `npm run check` passed with 102 tests; packed core and CLI installed beside a TypeScript 7.0.2 host and mapped the sample suite with core's own TypeScript 5.9.3.
