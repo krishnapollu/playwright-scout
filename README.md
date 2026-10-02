@@ -12,7 +12,7 @@
 
 `playwright-scout` is an agent skill, static index, and search tool for Playwright projects. It helps coding agents understand existing page objects, helpers, fixtures, tests, tags, routes, and relationships before they change or extend a suite. It can also provide a bounded, source-backed brief for a task.
 
-The commands documented here are currently available from this repository, not yet published to npm. To try them from a checkout, run `npm ci`, `npm run build`, then `node packages/cli/dist/bin.js --help`. The npm quick start below installs the latest published version, which may not include them yet.
+The `0.5.0` candidate documented here is available from this repository and has not been published to npm. To try it from a checkout, run `npm ci`, `npm run build`, then `node packages/cli/dist/bin.js --help`. The npm quick start below installs the latest published version, which may not include these commands yet.
 
 Scout reads your source code without running your tests or project code, giving agents a reliable map they can query before writing new code. That means new tests can build on what is already there instead of creating duplicates.
 
@@ -171,6 +171,8 @@ npm run release:publish
 ```
 
 The script checks the release, confirms the contents of both packages, and prompts before publishing core followed by the CLI. It skips a version that is already on npm, so you can rerun it if the second package fails. Bump the package you are releasing; if core changes, update the CLI's core dependency too. For prereleases, use `--tag next`.
+
+The [0.5.0 candidate verification](docs/RELEASE-v0.5.md) passed; publishing and pushing remain maintainer actions.
 
 ## License
 

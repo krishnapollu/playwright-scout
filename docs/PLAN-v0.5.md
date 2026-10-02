@@ -1,6 +1,6 @@
 # Scout next-phase product plan (draft)
 
-Status: **P0–P3 product work and P4 instrumentation complete; P4 agent runs paused**. The user has paused further agent tests. The [v0.4 evaluation protocol](SPEC-v0.4.md) remains the measurement plan; its unfinished pilot and main run are not counted as complete. The P0 command and package baseline is in [P0-BASELINE.md](P0-BASELINE.md), and offline measurement support is in [P4-MEASUREMENT.md](P4-MEASUREMENT.md). No token or quality gain is claimed.
+Status: **0.5.0 release candidate prepared; P4 agent runs paused**. The user has paused further agent tests. The [v0.4 evaluation protocol](SPEC-v0.4.md) remains the measurement plan; its unfinished pilot and main run are not counted as complete. The P0 command and package baseline is in [P0-BASELINE.md](P0-BASELINE.md), offline measurement support is in [P4-MEASUREMENT.md](P4-MEASUREMENT.md), and package verification is in [RELEASE-v0.5.md](RELEASE-v0.5.md). No token or quality gain is claimed.
 
 ## Product direction
 
