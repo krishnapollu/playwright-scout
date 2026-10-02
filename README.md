@@ -12,7 +12,7 @@
 
 `playwright-scout` is an agent skill, static index, and search tool for Playwright projects. It helps coding agents understand existing page objects, helpers, fixtures, tests, tags, routes, and relationships before they change or extend a suite. It can also provide a bounded, source-backed brief for a task.
 
-The v0.3.0 commands documented here are currently available from this repository, not yet published to npm. To try them from a checkout, run `npm ci`, `npm run build`, then `node packages/cli/dist/bin.js --help`. The npm quick start below installs the latest published version, which may not include them yet.
+The commands documented here are currently available from this repository, not yet published to npm. To try them from a checkout, run `npm ci`, `npm run build`, then `node packages/cli/dist/bin.js --help`. The npm quick start below installs the latest published version, which may not include them yet.
 
 Scout reads your source code without running your tests or project code, giving agents a reliable map they can query before writing new code. That means new tests can build on what is already there instead of creating duplicates.
 
@@ -32,6 +32,9 @@ Requires Node.js 20 or newer.
 
 ```bash
 npm install -D playwright-scout
+
+# Preview the existing Playwright layout without writing files
+npx playwright-scout init
 
 # Build or refresh the project index
 npx playwright-scout map
@@ -62,6 +65,7 @@ Scout writes the index to `.scout/index.json`. Add `.scout/` to your repository�
 
 | Command         | What it does                                                          | Example                                                    |
 | --------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `init`          | Preview what Scout would index, without writing files.               | `npx playwright-scout init`                                |
 | `map`           | Build or refresh the project index.                                   | `npx playwright-scout map`                                 |
 | `find`          | Search helpers, methods, tests, fixtures, and tags.                   | `npx playwright-scout find login`                          |
 | `context`       | Give an agent a bounded task capsule with cited reuse candidates. | `npx playwright-scout context "authenticated checkout"`    |
@@ -78,7 +82,7 @@ Scout writes the index to `.scout/index.json`. Add `.scout/` to your repository�
 - `--root <dir>` — run Scout against a different project directory.
 - `--if-stale` — with `map`, rebuild the index only when the source has changed.
 - `--max-chars <n>` — with `context`, bound the complete response (default 1800 characters, not an exact model token count). Use `show` on a cited ID for more evidence.
-- `--target <agent>` — with `install-skill`, choose `claude`, `agents`, `github`, `cursor`, or `all`.
+- `--target <agent>` — with `install-skill`, choose `claude`, `agents`, `github`, `cursor`, `qwen`, or `all`.
 
 See the [CLI reference](docs/CLI.md) for all options.
 
@@ -90,6 +94,7 @@ By default, the skill is installed inside the current project:
 | `claude` | `.claude/skills/playwright-scout/SKILL.md` |
 | `github` | `.github/skills/playwright-scout/SKILL.md` |
 | `cursor` | `.cursor/skills/playwright-scout/SKILL.md` |
+| `qwen`   | `.qwen/skills/playwright-scout/SKILL.md`   |
 
 Use `--global` with `--target claude` to install it at `~/.claude/skills/playwright-scout/SKILL.md` instead.
 
@@ -101,6 +106,8 @@ Scout performs two static-analysis passes:
 2. It resolves local imports, exports, and direct fixture providers to connect tests with the code they use.
 
 The result is a deterministic JSON index that can be searched from the CLI or used through the library API.
+
+`init` previews the Playwright layout and counts before indexing, without writing files. It accepts an optional business-context path and does not create one or change Playwright configuration.
 
 `context` gives an agent a small task capsule for creation or maintenance work. It lists omissions when the character bound cuts details; `show <cited-id>` retrieves a specific indexed entry. `impact --file` reports tests linked by the static index and the reason for each link. These results are advisory: dynamic calls and unsupported fixture shapes can leave relationships unknown. Scout does not infer business coverage requirements from source code.
 

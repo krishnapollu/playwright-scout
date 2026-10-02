@@ -21,7 +21,8 @@ async function tempRoot(prefix: string): Promise<string> {
 
 async function sampleRoot(): Promise<string> {
   const root = await tempRoot('scout-cli-suite-');
-  await fs.cp(SAMPLE, root, { recursive: true });
+  await fs.cp(SAMPLE, root, { recursive: true,
+    filter: (source) => !source.split(path.sep).includes('.scout') });
   return root;
 }
 
@@ -37,6 +38,15 @@ function capture() {
 }
 
 describe('CLI commands', () => {
+  it('previews the detected layout without writing an index', async () => {
+    const root = await sampleRoot();
+    const output = capture();
+    expect(await main(['node', 'scout', 'init', '--root', root, '--json'], output.writers)).toBe(0);
+    expect(JSON.parse(output.output.stdout)).toMatchObject({ command: 'init', writesFiles: false,
+      specFiles: 4, tests: 7, helpers: 7, fixtures: 3 });
+    await expect(fs.access(path.join(root, '.scout/index.json'))).rejects.toThrow();
+  });
+
   it('runs doctor without an index and treats findings as advisory', async () => {
     const root = fileURLToPath(new URL('../../../fixtures/guidance-suite', import.meta.url));
     const output = capture();
@@ -218,6 +228,13 @@ describe('CLI commands', () => {
 });
 
 describe('installSkillCommand', () => {
+  it('installs the same skill to Qwen Code project discovery path', async () => {
+    const root = await tempRoot('scout-qwen-');
+    expect(await installSkillCommand({ root, target: 'qwen' })).toContain('installed:');
+    const content = await fs.readFile(path.join(root, '.qwen/skills/playwright-scout/SKILL.md'), 'utf8');
+    expect(content).toContain('name: playwright-scout');
+  });
+
   it('copies the bundled skill into an agent path', async () => {
     const root = await tempRoot('scout-skill-');
 

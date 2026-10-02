@@ -9,7 +9,7 @@ import { contextCommand } from './commands/context.js';
 import { impactCommand } from './commands/impact.js';
 import { fileImpactCommand, validateSourceFile } from './commands/fileImpact.js';
 import { planCommand } from './commands/plan.js';
-import { doctor, readBusinessContext, readIndex, reviewSource, ScoutError } from 'playwright-scout-core';
+import { buildIndex, doctor, readBusinessContext, readIndex, reviewSource, ScoutError } from 'playwright-scout-core';
 import { formatFindResults, formatShowEntry } from './format.js';
 
 export interface OutputWriters {
@@ -54,6 +54,48 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
     writeErr: (text) => writers.stderr(text),
     outputError: (text, write) => write(text),
   });
+
+  program
+    .command('init')
+    .description('preview the Playwright layout Scout would index')
+    .option('--root <dir>', 'root directory', process.cwd())
+    .option('--business-context <path>', 'optional v1 business context file or directory')
+    .option('--allow-external-business-context', 'allow a business context path outside the project')
+    .option('--json')
+    .action(async (options) => {
+      const root = options.root ?? process.cwd();
+      if (options.allowExternalBusinessContext && !options.businessContext) {
+        throw new ScoutError('USAGE', '--allow-external-business-context requires --business-context');
+      }
+      if (options.businessContext) {
+        await readBusinessContext(root, options.businessContext, '', !!options.allowExternalBusinessContext);
+      }
+      const index = await buildIndex({ root, deterministic: true });
+      const preview = {
+        command: 'init', writesFiles: false,
+        configFile: index.project.configFile,
+        testDir: index.project.testDir,
+        specFiles: index.stats.specFiles,
+        tests: index.stats.tests,
+        helpers: index.stats.helpers,
+        fixtures: index.stats.fixtures,
+        helperDirs: index.project.helperDirs,
+        businessContext: options.businessContext
+          ? path.relative(path.resolve(root), path.resolve(root, options.businessContext)).split(path.sep).join('/') : null,
+        diagnostics: index.diagnostics,
+      };
+      if (options.json) writers.stdout(`${JSON.stringify(preview)}\n`);
+      else writers.stdout(`${[
+        'scout init preview (no files written)',
+        `config: ${preview.configFile ?? 'not detected'}`,
+        `test dir: ${preview.testDir ?? 'not detected'}`,
+        `would index: ${preview.specFiles} specs, ${preview.tests} tests, ${preview.helpers} helpers, ${preview.fixtures} fixtures`,
+        `helper dirs: ${preview.helperDirs.map((item) => `${item.dir} (${item.count})`).join(', ') || 'none detected'}`,
+        `business context: ${preview.businessContext ?? 'optional; pass --business-context <path> to context'}`,
+        `diagnostics: ${preview.diagnostics.length}`,
+        'next: npx playwright-scout map',
+      ].join('\n')}\n`);
+    });
 
   program
     .command('map')
@@ -255,7 +297,7 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
 
   program
     .command('install-skill')
-    .addOption(new Option('--target <target>', 'agent target').choices(['claude', 'agents', 'github', 'cursor', 'all']).default('agents'))
+    .addOption(new Option('--target <target>', 'agent target').choices(['claude', 'agents', 'github', 'cursor', 'qwen', 'all']).default('agents'))
     .option('--root <dir>', 'root directory', process.cwd())
     .option('--global', 'install into the global Claude config directory')
     .option('--force', 'overwrite an existing skill file')

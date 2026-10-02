@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export type SkillTarget = 'claude' | 'agents' | 'github' | 'cursor' | 'all';
+export type SkillTarget = 'claude' | 'agents' | 'github' | 'cursor' | 'qwen' | 'all';
 
 export interface InstallSkillOptions {
   root?: string;
@@ -17,6 +17,7 @@ const TARGET_DIRS: Record<Exclude<SkillTarget, 'all'>, string> = {
   agents: '.agents/skills/playwright-scout',
   github: '.github/skills/playwright-scout',
   cursor: '.cursor/skills/playwright-scout',
+  qwen: '.qwen/skills/playwright-scout',
 };
 
 function resolveCandidateRoots() {
@@ -65,7 +66,7 @@ export async function installSkillCommand(options: InstallSkillOptions = {}): Pr
     throw new Error('`--global` is only valid with `--target claude`.');
   }
 
-  const targets: Exclude<SkillTarget, 'all'>[] = target === 'all' ? ['claude', 'agents', 'github', 'cursor'] : [target];
+  const targets: Exclude<SkillTarget, 'all'>[] = target === 'all' ? ['claude', 'agents', 'github', 'cursor', 'qwen'] : [target];
   const source = await findSkillSource();
   const lines: string[] = [];
 

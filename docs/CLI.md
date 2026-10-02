@@ -2,6 +2,14 @@
 
 All commands accept `--root <dir>` where supported; it defaults to the current directory.
 
+## `init` (preview)
+
+```sh
+playwright-scout init [--root <dir>] [--business-context <file-or-dir>] [--allow-external-business-context] [--json]
+```
+
+Detects the existing Playwright layout and previews config, test directory, index counts, helper directories, and diagnostics. It reads source statically and writes no files. The business-context path is optional and validated when supplied; `init` does not create or prescribe one. Run `map` afterward to write the index.
+
 ## `map`
 
 ```sh
@@ -65,10 +73,10 @@ These advisory commands do not need an index, run tests, or edit code. `doctor` 
 ## `install-skill`
 
 ```sh
-playwright-scout install-skill [--target claude|agents|github|cursor|all] [--global] [--force] [--root <dir>]
+playwright-scout install-skill [--target claude|agents|github|cursor|qwen|all] [--global] [--force] [--root <dir>]
 ```
 
-Installs the bundled skill. `--global` is available only for the Claude target.
+Installs the bundled skill. Qwen Code's project path is `.qwen/skills/playwright-scout/SKILL.md`. `--global` is available only for the Claude target.
 
 ## Exit Codes
 
