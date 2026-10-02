@@ -149,6 +149,22 @@ describe('CLI commands', () => {
     expect(await main(['node', 'scout', 'context', 'coupon', '--root', root, '--max-chars', '499'], invalid.writers)).toBe(2);
   });
 
+  it('includes only relevant opt-in business context as unverified data', async () => {
+    const root = await sampleRoot();
+    await fs.writeFile(path.join(root, 'business.json'), JSON.stringify({ version: 1, entries: [
+      { id: 'coupon-rule', kind: 'rule', title: 'Coupon checkout', summary: 'Expired coupons are rejected.' },
+      { id: 'login-rule', kind: 'rule', title: 'Login', summary: 'Failed login is shown.' },
+    ] }));
+    expect(await main(['node', 'scout', 'map', '--root', root], capture().writers)).toBe(0);
+    const result = capture();
+    expect(await main(['node', 'scout', 'context', 'coupon checkout', '--root', root, '--business-context', 'business.json', '--json'], result.writers), result.output.stderr).toBe(0);
+    const brief = JSON.parse(result.output.stdout) as { businessContext: Array<{ id: string; source: string }>; unknowns: string[] };
+    expect(brief.businessContext).toMatchObject([{ id: 'coupon-rule', source: 'business.json' }]);
+    expect(brief.unknowns.join(' ')).toContain('unverified');
+    const rejected = capture();
+    expect(await main(['node', 'scout', 'context', 'coupon', '--root', root, '--business-context', '../outside.json'], rejected.writers)).toBe(2);
+  });
+
   it('reports file impact and rejects unsafe paths', async () => {
     const root = await sampleRoot();
     expect(await main(['node', 'scout', 'map', '--root', root], capture().writers)).toBe(0);

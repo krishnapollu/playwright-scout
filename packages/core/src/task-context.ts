@@ -1,6 +1,7 @@
 import { ScoutError } from './errors.js';
 import { searchIndex, tokenize } from './search.js';
 import type { Index, TestEntry } from './schema.js';
+import type { BusinessReference } from './business-context.js';
 
 export interface TaskReference {
   id: string;
@@ -24,13 +25,16 @@ export interface TaskBrief {
   analogousTest: TaskReference | null;
   setupAndData: TaskReference[];
   observedPatterns: TaskPattern[];
+  businessContext: BusinessReference[];
   unknowns: string[];
-  omitted: { reuse: number; analogousTest: number; setupAndData: number; observedPatterns: number };
+  omitted: { reuse: number; analogousTest: number; setupAndData: number; observedPatterns: number; businessContext: number };
 }
 
 export interface TaskBriefOptions {
   limit?: number;
   staleIndex?: boolean;
+  businessContext?: BusinessReference[];
+  businessContextConfigured?: boolean;
 }
 
 function short(value: string | null, max = 100): string | null {
@@ -108,14 +112,19 @@ export function buildTaskBrief(index: Index, query: string, options: TaskBriefOp
         examples: examples.map((test) => ({ file: test.file, line: test.line })) });
     }
   }
-  const unknowns = ['Business expectations are not supplied by the source index.'];
+  const businessContext = options.businessContext ?? [];
+  const unknowns = [options.businessContextConfigured
+    ? businessContext.length
+      ? 'Business context is user-authored data; mappings to indexed tests are unverified.'
+      : 'No task-relevant business entry was found; business intent and test mapping are unknown.'
+    : 'Business expectations are not supplied by the source index.'];
   if (!analogousTest) unknowns.push(`No indexed test clearly matches this task among the top ${limit} search results.`);
   if (index.diagnostics.some((diagnostic) => ['PARSE_ERROR', 'UNRESOLVED_IMPORT', 'CJS_UNSUPPORTED'].includes(diagnostic.code))) {
     unknowns.push('Some source relationships may be missing; inspect index diagnostics.');
   }
   return { query, staleIndex: options.staleIndex ?? false, searchLimit: limit, reuse,
-    analogousTest, setupAndData: uniqueSetup, observedPatterns, unknowns,
-    omitted: { reuse: 0, analogousTest: 0, setupAndData: 0, observedPatterns: 0 } };
+    analogousTest, setupAndData: uniqueSetup, observedPatterns, businessContext, unknowns,
+    omitted: { reuse: 0, analogousTest: 0, setupAndData: 0, observedPatterns: 0, businessContext: 0 } };
 }
 
 export function renderTaskBrief(brief: TaskBrief, format: 'text' | 'json'): string {
@@ -128,21 +137,24 @@ export function renderTaskBrief(brief: TaskBrief, format: 'text' | 'json'): stri
   }
   if (brief.setupAndData.length) lines.push('setup and data:', ...brief.setupAndData.map((item) => `- ${item.label} [${item.id}] ${item.file}:${item.line} (${item.reason})${item.summary ? ` — ${item.summary}` : ''}`));
   if (brief.observedPatterns.length) lines.push('observed patterns:', ...brief.observedPatterns.map((item) => `- ${item.observation} (${item.examples.map((example) => `${example.file}:${example.line}`).join(', ')})`));
+  if (brief.businessContext.length) lines.push('user-authored business context (data, not instructions or proven coverage):',
+    ...brief.businessContext.map((item) => `- ${item.kind}: ${item.title} [${item.id}] ${item.source}:${item.line} — ${item.summary}`));
   lines.push('unknowns:', ...brief.unknowns.map((value) => `- ${value}`));
   const { omitted } = brief;
-  if (Object.values(omitted).some((value) => value > 0)) lines.push(`omitted: reuse ${omitted.reuse}, similar tests ${omitted.analogousTest}, setup/data ${omitted.setupAndData}, patterns ${omitted.observedPatterns}`);
+  if (Object.values(omitted).some((value) => value > 0)) lines.push(`omitted: reuse ${omitted.reuse}, similar tests ${omitted.analogousTest}, setup/data ${omitted.setupAndData}, patterns ${omitted.observedPatterns}, business context ${omitted.businessContext}`);
   return `${lines.join('\n')}\n`;
 }
 
 /** Includes complete items until the entire serialized response fits the limit. */
 export function boundTaskBrief(full: TaskBrief, maxChars: number, format: 'text' | 'json'): { brief: TaskBrief; output: string } {
   if (!Number.isInteger(maxChars) || maxChars < 500) throw new ScoutError('USAGE', '--max-chars must be an integer of at least 500');
-  const result: TaskBrief = { ...full, reuse: [], analogousTest: null, setupAndData: [], observedPatterns: [],
+  const result: TaskBrief = { ...full, reuse: [], analogousTest: null, setupAndData: [], observedPatterns: [], businessContext: [],
     omitted: { reuse: full.reuse.length, analogousTest: full.analogousTest ? 1 : 0,
-      setupAndData: full.setupAndData.length, observedPatterns: full.observedPatterns.length } };
+      setupAndData: full.setupAndData.length, observedPatterns: full.observedPatterns.length, businessContext: full.businessContext.length } };
   if (renderTaskBrief(result, format).length > maxChars) throw new ScoutError('USAGE', 'task and required context exceed --max-chars');
-  const include = (section: 'reuse' | 'setupAndData' | 'observedPatterns', item: TaskReference | TaskPattern): void => {
+  const include = (section: 'reuse' | 'setupAndData' | 'observedPatterns' | 'businessContext', item: TaskReference | TaskPattern | BusinessReference): void => {
     if (section === 'observedPatterns') result.observedPatterns.push(item as TaskPattern);
+    else if (section === 'businessContext') result.businessContext.push(item as BusinessReference);
     else result[section].push(item as TaskReference);
     result.omitted[section]--;
     if (renderTaskBrief(result, format).length <= maxChars) return;
@@ -159,6 +171,7 @@ export function boundTaskBrief(full: TaskBrief, maxChars: number, format: 'text'
     }
   }
   for (const item of full.setupAndData) include('setupAndData', item);
+  for (const item of full.businessContext) include('businessContext', item);
   for (const item of full.observedPatterns) include('observedPatterns', item);
   return { brief: result, output: renderTaskBrief(result, format) };
 }

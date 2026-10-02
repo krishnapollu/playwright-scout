@@ -48,6 +48,9 @@ npx playwright-scout context "add expired coupon coverage"
 npx playwright-scout show CheckoutPage.applyCoupon
 npx playwright-scout impact --file pages/checkout.page.ts
 
+# Optional team-authored business context
+npx playwright-scout context "add expired coupon coverage" --business-context docs/business
+
 # Optional, on-request framework guidance
 npx playwright-scout doctor
 npx playwright-scout review --file tests/checkout.spec.ts
@@ -100,6 +103,8 @@ Scout performs two static-analysis passes:
 The result is a deterministic JSON index that can be searched from the CLI or used through the library API.
 
 `context` gives an agent a small task capsule for creation or maintenance work. It lists omissions when the character bound cuts details; `show <cited-id>` retrieves a specific indexed entry. `impact --file` reports tests linked by the static index and the reason for each link. These results are advisory: dynamic calls and unsupported fixture shapes can leave relationships unknown. Scout does not infer business coverage requirements from source code.
+
+Teams can optionally point `context` at a JSON file or directory of [versioned business entries](https://github.com/krishnapollu/playwright-scout/blob/main/docs/BUSINESS-CONTEXT.md) covering journeys, terminology, rules, and risks. Scout retrieves only task-relevant entries with file and line citations. These are user-provided data, never proof that a test covers a rule. The path defaults to the project; reading outside it requires an explicit flag.
 
 When reuse or change impact is unclear, the installed skill guides an agent to refresh the index, inspect source-backed matches, and reuse suitable code. For a straightforward local edit with a clear nearby example, it can work directly without Scout queries; `context` is not a mandatory step.
 

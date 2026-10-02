@@ -9,7 +9,7 @@ import { contextCommand } from './commands/context.js';
 import { impactCommand } from './commands/impact.js';
 import { fileImpactCommand, validateSourceFile } from './commands/fileImpact.js';
 import { planCommand } from './commands/plan.js';
-import { doctor, readIndex, reviewSource, ScoutError } from 'playwright-scout-core';
+import { doctor, readBusinessContext, readIndex, reviewSource, ScoutError } from 'playwright-scout-core';
 import { formatFindResults, formatShowEntry } from './format.js';
 
 export interface OutputWriters {
@@ -131,13 +131,21 @@ export function createProgram(writers: OutputWriters = defaultWriters) {
       return limit;
     }, 1800)
     .option('--json')
+    .option('--business-context <path>', 'optional v1 business context file or directory')
+    .option('--allow-external-business-context', 'allow a business context path outside the project')
     .action(async (queryParts: string[], options) => {
       const root = options.root ?? process.cwd();
       const index = await readIndex(root);
       const current = await isUpToDate(root, path.join(root, '.scout/index.json'));
-      const result = contextCommand(index, queryParts.join(' '), {
+      if (options.allowExternalBusinessContext && !options.businessContext) {
+        throw new ScoutError('USAGE', '--allow-external-business-context requires --business-context');
+      }
+      const query = queryParts.join(' ');
+      const businessContext = options.businessContext
+        ? await readBusinessContext(root, options.businessContext, query, !!options.allowExternalBusinessContext) : [];
+      const result = contextCommand(index, query, {
         limit: options.limit, maxChars: options.maxChars, staleIndex: !current,
-        format: options.json ? 'json' : 'text',
+        format: options.json ? 'json' : 'text', businessContext, businessContextConfigured: !!options.businessContext,
       });
       writers.stdout(result.output);
     });
