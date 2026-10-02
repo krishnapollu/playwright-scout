@@ -91,3 +91,4 @@
 - [x] Lean-repo docs pass — Moved maintainer release instructions out of the README, documented the reassigned test-object alias limit, and added an unreleased 0.5.2 changelog entry. No package version or behavior changed.
 - [x] Lean-repo hygiene — Removed the policy and issue-template files and reduced CONTRIBUTING to setup, checks, a sample CLI command, and an invitation to contribute.
 - [x] Documentation archive — Moved ten historical plans, pilots, release notes, and evaluations to `docs/archive/`; updated the README, bench candidate notes, and historical progress paths. Current contract and release docs remain at the top level.
+- [x] Link and reference audit — Checked every relative Markdown link in the README, CONTRIBUTING, top-level docs, archive, bench note, and generated package README; all targets exist. The release-credential grep exception and user-owned untracked docs file are recorded in `docs/DECISIONS.md`.
