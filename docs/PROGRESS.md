@@ -89,3 +89,4 @@
 - [x] 0.5.1 patch release preparation — Updated both workspace versions and the CLI core dependency to ship the post-0.5.0 fixes. The CLI version regression was observed failing at 0.5.0 before the bump.
 - [x] 0.5.1 publication — The authenticated release script passed the full check and package-content review, then published core followed by CLI. npm reports both `0.5.1` packages with the `latest` dist-tag. The release source is pushed to `origin/main`.
 - [x] Lean-repo docs pass — Moved maintainer release instructions out of the README, documented the reassigned test-object alias limit, and added an unreleased 0.5.2 changelog entry. No package version or behavior changed.
+- [x] Lean-repo hygiene — Removed the policy and issue-template files and reduced CONTRIBUTING to setup, checks, a sample CLI command, and an invitation to contribute.
