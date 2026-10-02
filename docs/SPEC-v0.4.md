@@ -1,6 +1,6 @@
 # playwright-scout v0.4 — Controlled agent evaluation (draft)
 
-Status: **pilot preparation; agent runs not started**. This is an evaluation milestone, not a new Scout command or package release. The v0.1–v0.3 specifications remain the product contracts.
+Status: **one-task feasibility pair completed; planned pilot and main evaluation not completed**. See [the pilot report](PILOT-v0.4.md). This is an evaluation milestone, not a new Scout command or package release. The v0.1–v0.3 specifications remain the product contracts.
 
 ## 1. Decision to answer
 

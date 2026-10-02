@@ -31,10 +31,16 @@ async function sourceHashes(root, relative = '') {
 function usageFromJsonl(jsonl) {
   const usage = { input_tokens: 0, output_tokens: 0, cached_input_tokens: 0 };
   let completedTurns = 0;
+  let commandCount = 0;
+  let scoutCommandCount = 0;
   for (const line of jsonl.split('\n')) {
     if (!line.trim()) continue;
     let event;
     try { event = JSON.parse(line); } catch { continue; }
+    if (event.type === 'item.completed' && event.item?.type === 'command_execution') {
+      commandCount++;
+      if (typeof event.item.command === 'string' && /\bnpx playwright-scout\b/.test(event.item.command)) scoutCommandCount++;
+    }
     if (event.type !== 'turn.completed' || !event.usage) continue;
     completedTurns++;
     for (const key of Object.keys(usage)) {
@@ -42,7 +48,7 @@ function usageFromJsonl(jsonl) {
       if (typeof value === 'number' && Number.isFinite(value)) usage[key] += value;
     }
   }
-  return { ...usage, completed_turns: completedTurns, measured: completedTurns > 0 };
+  return { ...usage, completed_turns: completedTurns, measured: completedTurns > 0, command_count: commandCount, scout_command_count: scoutCommandCount };
 }
 
 async function runArm({ codex, arm, directory, model, timeoutMs, prompt, outputRoot, original }) {
@@ -51,7 +57,11 @@ async function runArm({ codex, arm, directory, model, timeoutMs, prompt, outputR
   const out = createWriteStream(stdoutPath);
   const err = createWriteStream(stderrPath);
   const started = performance.now();
-  const child = spawn(codex, ['exec', '--json', '--full-auto', '-m', model, '-C', directory, '-'], {
+  const child = spawn(codex, [
+    'exec', '--json', '--approve-for-me',
+    '--skip-git-repo-check', '--ephemeral', '--ignore-user-config',
+    '-m', model, '-C', directory, '-',
+  ], {
     cwd: directory,
     env: childEnv(),
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -130,6 +140,7 @@ async function main() {
     await writeFile(resultsPath, `${JSON.stringify(summary, null, 2)}\n`);
   }
   process.stdout.write(`${resultsPath}\n`);
+  if (summary.results.some((result) => result.exit.code !== 0 || !result.usage.measured)) process.exitCode = 1;
 }
 
 main().catch((error) => {
