@@ -1,5 +1,7 @@
 # playwright-scout
 
+<img src="https://raw.githubusercontent.com/krishnapollu/playwright-scout/main/docs/img/logo.svg" alt="Scout logo" width="128">
+
 > Give your coding agent a map of your Playwright suite.
 
 [![CI](https://github.com/krishnapollu/playwright-scout/actions/workflows/ci.yml/badge.svg)](https://github.com/krishnapollu/playwright-scout/actions/workflows/ci.yml)
@@ -96,7 +98,7 @@ The result is a deterministic JSON index that can be searched from the CLI or us
 
 `context` gives an agent a small brief for creation or maintenance work. `impact --file` reports tests linked by the static index and the reason for each link. These results are advisory: dynamic calls and unsupported fixture shapes can leave relationships unknown. Scout does not infer business coverage requirements from source code.
 
-When you ask an agent to extend your Playwright suite, the installed skill tells it to refresh the Scout index, search for relevant existing code, inspect promising matches, and reuse suitable helpers, fixtures, and page objects before creating anything new.
+When reuse or change impact is unclear, the installed skill guides an agent to refresh the index, inspect source-backed matches, and reuse suitable code. For a straightforward local edit with a clear nearby example, it can work directly without Scout queries; `context` is not a mandatory step.
 
 `doctor` and `review` are separate, opt-in commands. They make suggestions only when asked and never block ordinary suite work. Their findings are based on a deliberately small set of static checks; an empty result is not proof that a framework has no issues.
 

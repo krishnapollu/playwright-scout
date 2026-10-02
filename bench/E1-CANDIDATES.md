@@ -1,6 +1,6 @@
 # v0.4 E1 — Public-suite and pilot-task candidates
 
-Status: **public-suite candidate design, not frozen or scored**. The user chose public suites for the eventual main evaluation and separately authorized sharing local `pw-test` source for a small Codex-only pilot. One independent feasibility pair on `pw-test` is reported in [the pilot report](../docs/PILOT-v0.4.md); none of the public candidate tasks below have been run with an agent. Source checkouts and baseline dependencies used for screening are temporary and are not part of this repository.
+Status: **public-suite candidate design, not frozen or scored**. The user chose public suites for the eventual main evaluation and separately authorized sharing local `pw-test` source for a small Codex-only pilot. Two feasibility pairs on the same `pw-test` task are reported in [the pilot report](../docs/PILOT-v0.4.md); none of the public candidate tasks below have been run with an agent. Source checkouts and baseline dependencies used for screening are temporary and are not part of this repository.
 
 ## Scope and interpretation
 
@@ -25,7 +25,7 @@ The older Microsoft and Checkly example checkouts are too small and fragmented f
 ## Ambiguities before freezing
 
 - All three suites have representative baseline checks, but exact task-specific checks remain unverified. A case whose check depends on unavailable browsers, network services, or unstable fixtures must be replaced or explicitly marked `runtime not assessed` **before** any agent result is seen.
-- Codex is selected as the sole agent. The local one-task pair used the configured model alias and a 10-minute cap per arm with reported token telemetry. Exact model snapshot, main-study run budget, and two blind reviewers remain undecided; these public candidate tasks are not yet frozen.
+- Codex is selected as the sole agent. The two local feasibility pairs used the configured model alias and a 10-minute cap per arm with reported token telemetry. Exact model snapshot, main-study run budget, and two blind reviewers remain undecided; these public candidate tasks are not yet frozen.
 - Main-task prompts and gold evidence must be stored separately in the harness so an agent cannot read the answer key. These candidate cases are for human design review only.
 - The first four cases below are pilot candidates. The remaining eight bring the design inventory to 12, but none are frozen until their individual baseline check, gold evidence, and independent review are complete. One suite has no POM and another has weak indexed links.
 

@@ -1,6 +1,6 @@
 # v0.4 Codex feasibility pilot — one paired task
 
-Status: **one-task pilot, not an efficacy result**. This does not complete the 4–6-task pilot or the main evaluation in [SPEC-v0.4.md](SPEC-v0.4.md). No Scout release or product behavior changed.
+Status: **two feasibility pairs on one task, not an efficacy result**. This does not complete the 4–6-task pilot or the main evaluation in [SPEC-v0.4.md](SPEC-v0.4.md). The second pair followed a small Scout skill/ranking change; neither pair supports a general token-saving claim.
 
 ## Setup and task
 
@@ -30,3 +30,21 @@ Scout's reported total was 20.2% lower in this pair, but its **uncached input pl
 Early launch attempts failed before model work because this installed Codex CLI did not accept the documented `--full-auto` option and then could not initialize inside the outer sandbox. The runner was updated to use its supported bounded approval mode and the pair was rerun with permission. These setup failures had zero completed turns and are excluded as instrumentation failures, not task failures. Raw event logs stay in the temporary pilot directory; the checked-in report contains only aggregate usage and outcomes.
 
 The next useful trial is a different task shape (for example POM maintenance) and a public suite with a locally hosted app. Freeze its prompt and checks first, repeat each arm, and compare both total and uncached token use. Keep the original main-study thresholds unchanged; do not infer a broad claim from this feasibility pair.
+
+## Follow-up on the same task after `373ac3e`
+
+Scout's skill now permits skipping Scout queries for a clear local test edit. Its `context` command also prefers an analogous test calling more relevant methods, with a same-file tie-break. A focused regression test covers the earlier bad ranking; on the unchanged `pw-test` source, the brief now points to the existing dress-search test rather than add-to-cart.
+
+Fresh identical snapshots, the same prompt/model alias/runner, and a 10-minute cap per arm were used. Random order was again **control, then Scout**. Both agents produced valid but not byte-identical tests: control used a loop over names, while Scout followed the adjacent dress-search test's `every(...)` style. Both passed TypeScript and the same targeted Chromium test against the public site.
+
+| Measure | Control | Scout |
+| --- | ---: | ---: |
+| Provider-reported input tokens | 231,585 | 172,574 |
+| Of those, cached input tokens | 192,000 | 147,968 |
+| Output tokens | 1,887 | 2,097 |
+| Total input + output tokens | 233,472 | 174,671 |
+| Uncached input + output tokens | 41,472 | 26,703 |
+| Agent wall time | 53.6 s | 63.0 s |
+| Completed shell commands | 8 | 8 |
+
+The earlier 28% *higher* uncached-plus-output result for Scout did not repeat: in this pair Scout was 35.6% *lower*. However, the control agent ran the **entire products suite** and received about 97,000 characters of output from a failed run; Scout ran only the targeted new test and received about 13,000 characters from its first failed attempt. This agent-choice difference, changing cache-hit rates, and single-run variation make the token delta unsuitable as causal evidence for the Scout changes. Scout read the revised skill and still called `map` and `context` together; the new abstention guidance was not exercised on this task. The ranking change was exercised and the brief named the relevant dress-search example. The next evaluation should use a different predeclared task and report command/output behavior alongside token usage.
