@@ -1,6 +1,6 @@
 # playwright-scout v0.4 — Controlled agent evaluation (draft)
 
-Status: **planning complete; evaluation not started**. This is an evaluation milestone, not a new Scout command or package release. The v0.1–v0.3 specifications remain the product contracts.
+Status: **pilot preparation; agent runs not started**. This is an evaluation milestone, not a new Scout command or package release. The v0.1–v0.3 specifications remain the product contracts.
 
 ## 1. Decision to answer
 
@@ -11,6 +11,8 @@ The experiment must be specified and scored before outcomes are inspected. Negat
 ## 2. Boundary
 
 - Keep the experiment under `bench/` and its report under `docs/`. It must not be a Scout runtime dependency, a mandatory skill step, or a new product CLI command.
+- Keep evaluated Playwright projects standalone. Prepare two isolated copies of the same external source snapshot rather than embedding their suites in this repository.
+- Use Codex as the sole agent in both arms. No second agent is needed for this evaluation.
 - Scout remains a static, local analyzer. The harness may invoke an external coding agent **only when a maintainer explicitly runs it**; core and CLI never call a model, run analyzed project code, or ingest Logbook artifacts.
 - Logbook owns run and failure records. The harness may run task-specific Playwright tests for scoring, but does not add runtime ingestion to Scout.
 - Never publish, push, or send source to a hosted model as part of an automatic check. Obtain the suite owner's permission before using private code with any external provider. Do not store secrets, prompts containing credentials, raw traces, or full private diffs in checked-in results.
@@ -71,8 +73,8 @@ Each completed milestone updates `docs/PROGRESS.md`, passes `npm run check` when
 
 ## 8. Decisions required before E1/E2
 
-1. Which agent/model and provider telemetry can be frozen for the entire evaluation? If the local 9B model is used, confirm that actual prompt/completion token counts are exposed and stable.
-2. **Resolved in part:** use public suites only. Candidate repositories and pinned revisions are screened in `bench/E1-CANDIDATES.md`; their baseline checks and final selection are not yet frozen. Public examples alone may not be representative.
+1. **Resolved in part:** use Codex for both arms; freeze its exact CLI/model configuration and verify reported token telemetry before paired runs.
+2. **Resolved in part:** use public suites for the eventual main evaluation. Candidate repositories and pinned revisions are screened in `bench/E1-CANDIDATES.md`. The owner also authorized sharing local `pw-test` source with Codex for a small pilot; exclude credentials, reports, artifacts, and other non-source data. Do not silently generalize from this one suite.
 3. What run budget (money and wall time) is authorized? Forty-eight main runs plus pilot may be substantial; the harness must enforce a per-run cap and stop at the approved total.
 4. Who will provide independent blind review, especially for business behavior not inferable from source?
 
